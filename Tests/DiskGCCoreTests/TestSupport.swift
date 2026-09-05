@@ -5,7 +5,7 @@ enum TestSupport {
     static func tempDir(_ name: String = "diskgc") -> String {
         let path = NSTemporaryDirectory() + "\(name)-\(UUID().uuidString)"
         try! FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
-        return URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        return RealPath.resolve(path)
     }
 
     static func mkdir(_ path: String) {
