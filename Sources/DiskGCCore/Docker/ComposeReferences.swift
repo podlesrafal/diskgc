@@ -21,13 +21,13 @@ public struct ComposeReferences: Equatable {
     }
 
     static func composeFiles(under dir: String, depth: Int, maxDepth: Int, fs: FileManager) -> [String] {
-        guard depth <= maxDepth, let entries = try? fs.contentsOfDirectory(atPath: dir) else { return [] }
+        guard depth <= maxDepth else { return [] }
         var files: [String] = []
-        for entry in entries.sorted() {
-            let path = "\(dir)/\(entry)"
-            if isComposeFile(entry) {
+        for entry in Walker.entries(of: dir) {
+            let path = "\(dir)/\(entry.name)"
+            if !entry.isDirectory, isComposeFile(entry.name) {
                 files.append(path)
-            } else if entry != "node_modules", entry != ".git", entry != "target", Walker.isRealDirectory(path, fs: fs) {
+            } else if entry.isDirectory, !BuildArtifactScanner.names.contains(entry.name), entry.name != ".git" {
                 files += composeFiles(under: path, depth: depth + 1, maxDepth: maxDepth, fs: fs)
             }
         }

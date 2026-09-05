@@ -53,20 +53,32 @@ public struct StatusReport: Codable, Equatable {
             guard !tierGroups.isEmpty else { continue }
             let heading = tier == .auto ? "AUTO (removed under pressure)" : "ASK (diskgc review)"
             lines.append("")
-            lines.append(String(format: "%-40@ %6@ %11@ %7@", heading, "items", "size", "oldest"))
+            lines.append(Self.row(heading, "items", "size", "oldest"))
             for group in tierGroups {
-                lines.append(String(format: "  %-38@ %6d %11@ %6dd", group.group, group.count, ByteFormat.string(group.sizeBytes), group.maxStaleDays))
+                lines.append(Self.row("  " + group.group, String(group.count), ByteFormat.string(group.sizeBytes), "\(group.maxStaleDays)d"))
                 guard verbose else { continue }
                 for candidate in candidates.filter({ $0.tier == tier && $0.group == group.group }).sorted(by: { $0.sizeBytes > $1.sizeBytes }) {
                     let detail = candidate.detail.map { "  (\($0))" } ?? ""
-                    lines.append(String(format: "      %-60@ %11@ %5dd%@", candidate.label, ByteFormat.string(candidate.sizeBytes), candidate.staleDays, detail))
+                    lines.append("      " + Self.pad(candidate.label, 62) + Self.lpad(ByteFormat.string(candidate.sizeBytes), 11) + Self.lpad("\(candidate.staleDays)d", 7) + detail)
                 }
             }
-            lines.append(String(format: "  %-38@ %6@ %11@", "total", "", ByteFormat.string(total(tier))))
+            lines.append(Self.row("  total", "", ByteFormat.string(total(tier)), ""))
         }
         if groups.isEmpty { lines.append("Nothing to reclaim.") }
         for error in errors { lines.append("warning: \(error)") }
         return lines.joined(separator: "\n")
+    }
+
+    static func row(_ a: String, _ b: String, _ c: String, _ d: String) -> String {
+        pad(a, 42) + lpad(b, 6) + lpad(c, 11) + lpad(d, 8)
+    }
+
+    static func pad(_ text: String, _ width: Int) -> String {
+        text.count >= width ? text + " " : text + String(repeating: " ", count: width - text.count)
+    }
+
+    static func lpad(_ text: String, _ width: Int) -> String {
+        text.count >= width ? " " + text : String(repeating: " ", count: width - text.count) + text
     }
 
     public func json() throws -> String {

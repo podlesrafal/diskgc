@@ -17,18 +17,9 @@ public struct BuildArtifactScanner: DiskScanner {
     }
 
     func candidates(for paths: [String], root: String, ctx: ScanContext) -> [Candidate] {
-        var toplevelByParent: [String: String?] = [:]
         var pathsByTree: [String: [String]] = [:]
         for path in paths {
-            let parent = (path as NSString).deletingLastPathComponent
-            let toplevel: String?
-            if let cached = toplevelByParent[parent] {
-                toplevel = cached
-            } else {
-                toplevel = ctx.git.toplevel(of: parent)
-                toplevelByParent[parent] = toplevel
-            }
-            guard let tree = toplevel else { continue }
+            guard let tree = Walker.workTree(containing: (path as NSString).deletingLastPathComponent) else { continue }
             pathsByTree[tree, default: []].append(path)
         }
         var result: [Candidate] = []

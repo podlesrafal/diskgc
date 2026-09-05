@@ -50,8 +50,18 @@ public struct GitProbe {
     }
 
     public func indexModificationDate(of worktree: String) -> Date? {
-        guard let dir = gitDir(of: worktree) else { return nil }
+        guard let dir = Self.localGitDir(of: worktree, fs: fs) ?? gitDir(of: worktree) else { return nil }
         return Walker.modificationDate("\(dir)/index", fs: fs) ?? Walker.modificationDate(dir, fs: fs)
+    }
+
+    public static func localGitDir(of worktree: String, fs: FileManager) -> String? {
+        let dotGit = "\(worktree)/.git"
+        if Walker.isRealDirectory(dotGit, fs: fs) { return dotGit }
+        guard let data = fs.contents(atPath: dotGit) else { return nil }
+        let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.hasPrefix("gitdir:") else { return nil }
+        let target = text.dropFirst("gitdir:".count).trimmingCharacters(in: .whitespaces)
+        return target.hasPrefix("/") ? target : PathSafety.normalize("\(worktree)/\(target)")
     }
 
     public static func parseWorktreeList(_ porcelain: String) -> [WorktreeEntry] {
