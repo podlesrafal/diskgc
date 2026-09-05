@@ -10,6 +10,7 @@ public struct BuildArtifactScanner: DiskScanner {
     public func scan(_ ctx: ScanContext) throws -> [Candidate] {
         var result: [Candidate] = []
         for root in ctx.config.projectRoots where Walker.isRealDirectory(root, fs: ctx.fs) {
+            try Walker.checkReadable(root)
             let found = Walker.directories(named: Self.names, under: root, maxDepth: Self.maxDepth, skipping: [".git"], fs: ctx.fs)
             result += candidates(for: found, root: root, ctx: ctx)
         }

@@ -100,3 +100,17 @@ import Testing
         #expect(Staleness.days(since: nil, now: now) == 0)
     }
 }
+
+@Suite struct AccessTests {
+    @Test func unreadableDirectoryIsReportedWithGuidance() throws {
+        let root = TestSupport.tempDir()
+        let locked = "\(root)/locked"
+        TestSupport.mkdir(locked)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked) }
+        #expect(throws: AccessDenied(path: locked)) { try Walker.checkReadable(locked) }
+        #expect(AccessDenied(path: locked).description.contains("Files and Folders"))
+        try Walker.checkReadable(root)
+        try Walker.checkReadable("\(root)/missing")
+    }
+}

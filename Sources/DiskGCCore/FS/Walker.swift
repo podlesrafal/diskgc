@@ -80,3 +80,21 @@ public enum Walker {
         return nil
     }
 }
+
+public struct AccessDenied: Error, CustomStringConvertible, Equatable {
+    public var path: String
+
+    public var description: String {
+        "no permission to read \(path); allow diskgc under System Settings > Privacy & Security > Files and Folders (or Full Disk Access)"
+    }
+}
+
+public extension Walker {
+    static func checkReadable(_ dir: String) throws {
+        if let handle = opendir(dir) {
+            closedir(handle)
+            return
+        }
+        if errno == EPERM || errno == EACCES { throw AccessDenied(path: dir) }
+    }
+}

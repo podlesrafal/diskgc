@@ -9,6 +9,7 @@ public struct WorktreeScanner: DiskScanner {
     public func scan(_ ctx: ScanContext) throws -> [Candidate] {
         var candidates: [Candidate] = []
         for root in ctx.config.projectRoots where Walker.isRealDirectory(root, fs: ctx.fs) {
+            try Walker.checkReadable(root)
             for repo in Self.repositories(under: root, depth: 0, fs: ctx.fs) {
                 candidates += scan(repo: repo, ctx: ctx)
             }

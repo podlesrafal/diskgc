@@ -1,5 +1,6 @@
 import ArgumentParser
 import DiskGCCore
+import Foundation
 
 @main
 struct Diskgc: ParsableCommand {
@@ -10,4 +11,9 @@ struct Diskgc: ParsableCommand {
         subcommands: [StatusCommand.self, TickCommand.self, CleanCommand.self, ReviewCommand.self, LogCommand.self, InstallCommand.self, UninstallCommand.self],
         defaultSubcommand: StatusCommand.self
     )
+
+    static func main() {
+        setvbuf(stdout, nil, _IOLBF, 0)
+        Self.main(nil)
+    }
 }

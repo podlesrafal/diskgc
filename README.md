@@ -15,6 +15,12 @@ swift build -c release
 `~/.config/diskgc/config.yaml` and loads a LaunchAgent that runs `diskgc tick` every
 30 minutes (and once right away). `diskgc uninstall` removes the agent.
 
+The first run under launchd makes macOS ask whether `diskgc` may access your Documents
+folder (project roots live there); the scan blocks until you click Allow. If you decline,
+`diskgc status` reports the missing permission and the project scanners find nothing.
+Grant it once in System Settings > Privacy & Security > Files and Folders (or Full Disk
+Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the prompt again.
+
 ## Commands
 
 | Command | What it does |
