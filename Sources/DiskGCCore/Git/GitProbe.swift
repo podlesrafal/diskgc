@@ -87,3 +87,12 @@ public struct GitProbe {
         return trim ? result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) : result.stdout
     }
 }
+
+public extension GitProbe {
+    func ignoredPaths(_ paths: [String], in worktree: String) -> Set<String> {
+        guard !paths.isEmpty,
+              let result = try? shell.run("git", ["-C", worktree, "check-ignore", "--no-index"] + paths, cwd: nil),
+              result.status == 0 || result.status == 1 else { return [] }
+        return Set(result.stdout.split(separator: "\n").map(String.init))
+    }
+}
