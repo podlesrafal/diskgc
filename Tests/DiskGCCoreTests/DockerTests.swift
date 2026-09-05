@@ -33,8 +33,6 @@ enum DockerFixtures {
         \(danglingImage)\t<none>\t<none>\t300MB\t2026-08-01 10:00:00 +0200 CEST
 
         """)
-        shell.respond("docker", ["volume", "ls", "--filter", "dangling=true", "--format", "{{.Name}}"], stdout: "vol-a\nvol-b\n")
-        shell.respond("docker", ["system", "df", "-v", "--format", "{{json .Volumes}}"], stdout: #"[{"Name":"vol-a","Size":"1.5GB"},{"Name":"other","Size":"3GB"}]"#)
         shell.respond("docker", ["system", "df", "--format", "{{json .}}"], stdout: """
         {"Active":"36","Reclaimable":"16.38GB (29%)","Size":"54.91GB","TotalCount":"62","Type":"Images"}
         {"Active":"0","Reclaimable":"2.332GB","Size":"2.723GB","TotalCount":"59","Type":"Build Cache"}
@@ -123,11 +121,7 @@ enum DockerFixtures {
         #expect(found[1].detail == "dangling")
     }
 
-    @Test func volumeAndBuildCacheScanners() throws {
-        let volumes = try DockerVolumeScanner().scan(DockerFixtures.context(now: now))
-        #expect(volumes.map(\.label) == ["vol-a", "vol-b"])
-        #expect(volumes.map(\.sizeBytes) == [1_500_000_000, 0])
-        #expect(volumes[0].actions == [.run(command: "docker", arguments: ["volume", "rm", "vol-a"])])
+    @Test func buildCacheScanner() throws {
         let cache = try DockerBuildCacheScanner().scan(DockerFixtures.context(now: now))
         #expect(cache.count == 1)
         #expect(cache[0].sizeBytes == 2_332_000_000)

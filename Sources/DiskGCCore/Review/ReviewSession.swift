@@ -11,8 +11,8 @@ public struct ReviewIO {
 }
 
 public struct ReviewSession {
-    public static let order: [ScannerID] = [.dockerContainers, .dockerImages, .dockerVolumes, .dockerBuildCache, .worktrees]
-    static let itemLevel: Set<ScannerID> = [.dockerVolumes, .worktrees]
+    public static let order: [ScannerID] = [.dockerContainers, .dockerImages, .dockerBuildCache, .worktrees]
+    static let itemLevel: Set<ScannerID> = [.worktrees]
 
     let ctx: ScanContext
     let executor: Executor

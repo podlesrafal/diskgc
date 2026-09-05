@@ -19,7 +19,10 @@ that is not trivially regenerable.
 
 - Tool caches and build artifacts are removed automatically.
 - Docker resources and git worktrees are only removed after the user confirms.
-- Private files, `~/.m2`, and the Claude Desktop VM bundles are never touched.
+- Private files, `~/.m2`, the Claude Desktop VM bundles and Docker volumes are never touched.
+  Volumes were in the ask tier in the first version; the user removed them on 2026-09-05
+  because they are the only Docker resource that holds data and reviewing 71 of them one by
+  one was not worth it.
 - Implementation language is Swift (SwiftPM package). The core is a library so a later
   menu-bar app can reuse it. Phase 1 is a CLI plus a LaunchAgent.
 
@@ -28,7 +31,7 @@ that is not trivially regenerable.
 | Tier | Scanners | Trigger |
 |---|---|---|
 | `auto` | tool caches, build artifacts, Xcode, JetBrains, updater caches, Claude scratchpads | only under pressure: free space below `target_free_gb` (default 60). Candidates are removed most-stale-first until the target is reached. |
-| `ask` | Docker containers, images, build cache, volumes; git worktrees | a macOS notification summarises reclaimable size; the user decides in `diskgc review`. |
+| `ask` | Docker containers, images, build cache; git worktrees | a macOS notification summarises reclaimable size; the user decides in `diskgc review`. |
 | `never` | configured paths, anything outside a scanner's root | never, including manual commands. |
 
 Auto runs only under pressure on purpose: deleting `node_modules` of an idle worktree while
@@ -102,12 +105,8 @@ always candidates. Action: `docker rmi <id>`. One group.
 
 **docker_build_cache** — total from `docker builder du`. Action: `docker builder prune -af`.
 
-**docker_volumes** — `docker volume ls --filter dangling=true`. Sizes from
-`docker system df -v`. Action: `docker volume rm <name>`. Reviewed one by one because
-names reveal databases.
-
 Groups are recomputed before each group is reviewed, so removing containers makes their
-images and volumes eligible in the same session.
+images eligible in the same session.
 
 **worktrees** — for every repository under `project_roots` (a `.git` directory, depth ≤ 4,
 not inside `node_modules`), `git worktree list --porcelain`. A linked worktree (never the
@@ -164,7 +163,7 @@ The process lowers its own I/O priority (launchd `ProcessType: Background`, `Nic
 | `diskgc status [--rescan] [--json]` | free space, candidates per tier and group with sizes |
 | `diskgc tick [--dry-run]` | the pressure loop above |
 | `diskgc clean [--dry-run] [--scanner name] [--all]` | run the auto tier now; `--all` ignores the pressure target and removes every stale candidate |
-| `diskgc review [--dry-run]` | interactive walk through ask groups in the order containers, images, volumes, build cache, worktrees. Containers, images and build cache are decided per group (`y` remove all, `n` skip, `l` list, `q` quit); volumes and worktrees are decided item by item (`y`, `n`, `k` keep forever for worktrees, `q`). |
+| `diskgc review [--dry-run]` | interactive walk through ask groups in the order containers, images, build cache, worktrees. Containers, images and build cache are decided per group (`y` remove all, `n` skip, `l` list, `q` quit); worktrees are decided item by item (`y`, `n`, `k` keep forever, `q`). |
 | `diskgc install` / `diskgc uninstall` | copy the binary to `~/.local/bin/diskgc`, write and load `~/Library/LaunchAgents/dev.rpo.diskgc.plist` (StartInterval 1800, RunAtLoad), create a default config if missing |
 | `diskgc log [--limit n]` | print the journal |
 
@@ -205,7 +204,6 @@ scanners:
   docker_containers: ask
   docker_images: ask
   docker_build_cache: ask
-  docker_volumes: ask
   worktrees: ask
 never:
   - ~/.m2
@@ -224,7 +222,7 @@ Sources/DiskGCCore/
   Shell/        ShellRunner protocol, ProcessShell, argument-level API
   FS/           SizeProbe (du), DiskSpace (statfs), PathSafety, Walker
   Git/          GitProbe (toplevel, git-dir, check-ignore, status, worktree list)
-  Docker/       DockerProbe (ps, images, volumes, builder du, compose references)
+  Docker/       DockerProbe (ps, images, builder du, compose references)
   Scanners/     one type per scanner, all conforming to Scanner
   Policy/       PressurePlanner (ordering, stop condition)
   Executor/     Executor (safety checks, actions, journal)

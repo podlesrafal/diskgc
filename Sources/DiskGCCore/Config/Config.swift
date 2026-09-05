@@ -54,7 +54,7 @@ public struct Config: Codable, Equatable, Sendable {
     public static let defaultTiers: [ScannerID: Tier] = [
         .toolCaches: .auto, .buildArtifacts: .auto, .xcode: .auto, .jetbrains: .auto,
         .updaterCaches: .auto, .claudeScratch: .auto,
-        .dockerContainers: .ask, .dockerImages: .ask, .dockerBuildCache: .ask, .dockerVolumes: .ask,
+        .dockerContainers: .ask, .dockerImages: .ask, .dockerBuildCache: .ask,
         .worktrees: .ask,
     ]
 

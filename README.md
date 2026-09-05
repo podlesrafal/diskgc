@@ -28,7 +28,7 @@ Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the
 | `diskgc status [--rescan] [--verbose] [--json]` | free space and reclaimable candidates per tier |
 | `diskgc tick [--dry-run]` | one pressure cycle: remove auto candidates until the target is reached, notify about the ask tier |
 | `diskgc clean [--dry-run] [--all] [--scanner name]` | run the auto tier now; `--all` ignores the target |
-| `diskgc review [--dry-run]` | walk through Docker containers, images, volumes, build cache and idle worktrees |
+| `diskgc review [--dry-run]` | walk through Docker containers, images, build cache and idle worktrees |
 | `diskgc log [--limit n]` | journal of every planned and performed action |
 | `diskgc install` / `diskgc uninstall` | manage the LaunchAgent |
 
@@ -46,10 +46,10 @@ Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the
 
 **ask** (macOS notification, then `diskgc review`):
 
-- Docker containers stopped for 3+ days, images not used by any container and not referenced by a compose file under your project roots, dangling volumes, build cache
+- Docker containers stopped for 3+ days, images not used by any container and not referenced by a compose file under your project roots, build cache
 - linked git worktrees that are clean and idle for 21+ days (`git worktree remove`, never `--force`)
 
-**never**: `~/.m2`, `~/Library/Application Support/Claude`, everything outside the roots each scanner declares.
+**never**: Docker volumes (the only Docker resource that holds data; remove them yourself with `docker volume rm`), `~/.m2`, `~/Library/Application Support/Claude`, everything outside the roots each scanner declares.
 
 ## Config
 
@@ -79,7 +79,6 @@ scanners:          # auto | ask | off
   docker_containers: ask
   docker_images: ask
   docker_build_cache: ask
-  docker_volumes: ask
   worktrees: ask
 never:
   - ~/.m2

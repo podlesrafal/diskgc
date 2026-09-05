@@ -22,11 +22,6 @@ public struct DockerImage: Equatable {
     public var dangling: Bool { tags.isEmpty }
 }
 
-public struct DockerVolume: Equatable {
-    public var name: String
-    public var sizeBytes: Int64
-}
-
 public struct DockerProbe {
     let shell: ShellRunner
 
@@ -72,30 +67,6 @@ public struct DockerProbe {
             }
         }
         return order.compactMap { byID[$0] }
-    }
-
-    public func danglingVolumes() throws -> [DockerVolume] {
-        let names = try shell.run("docker", ["volume", "ls", "--filter", "dangling=true", "--format", "{{.Name}}"], cwd: nil)
-            .stdout.split(separator: "\n").map(String.init)
-        guard !names.isEmpty else { return [] }
-        let sizes = volumeSizes()
-        return names.map { DockerVolume(name: $0, sizeBytes: sizes[$0] ?? 0) }
-    }
-
-    struct VolumeRow: Decodable {
-        var name: String
-        var size: String
-
-        enum CodingKeys: String, CodingKey {
-            case name = "Name"
-            case size = "Size"
-        }
-    }
-
-    func volumeSizes() -> [String: Int64] {
-        guard let result = try? shell.run("docker", ["system", "df", "-v", "--format", "{{json .Volumes}}"], cwd: nil), result.succeeded,
-              let rows = try? JSONDecoder().decode([VolumeRow].self, from: Data(result.stdout.utf8)) else { return [:] }
-        return Dictionary(rows.map { ($0.name, HumanSize.bytes($0.size)) }, uniquingKeysWith: { a, _ in a })
     }
 
     struct DfRow: Decodable {

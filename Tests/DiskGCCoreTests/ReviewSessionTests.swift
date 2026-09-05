@@ -23,8 +23,6 @@ import Testing
                 Candidate(scanner: id, tier: .ask, group: "Docker containers", id: "c1", label: "old-db", sizeBytes: gb, staleDays: 5, actions: [.run(command: "docker", arguments: ["rm", "c1"])]),
                 Candidate(scanner: id, tier: .ask, group: "Docker containers", id: "c2", label: "old-api", sizeBytes: gb, staleDays: 6, actions: [.run(command: "docker", arguments: ["rm", "c2"])]),
             ]
-        case .dockerVolumes:
-            return [Candidate(scanner: id, tier: .ask, group: "Docker volumes", id: "v1", label: "v1", sizeBytes: gb, staleDays: 0, actions: [.run(command: "docker", arguments: ["volume", "rm", "v1"])])]
         case .worktrees:
             return [
                 Candidate(scanner: id, tier: .ask, group: "Worktrees", id: "/w/a", label: "~/w/a", detail: "branch a, 30d idle", sizeBytes: gb, staleDays: 30, actions: [.worktreeRemove(repo: "/r", path: "/w/a")]),
@@ -45,7 +43,7 @@ import Testing
         let shell = FakeShell()
         shell.respond("docker", ["rm", "c1"], stdout: "")
         shell.respond("docker", ["rm", "c2"], stdout: "")
-        let script = Script(["l", "y", "n", "n", "n"])
+        let script = Script(["l", "y", "n", "n"])
         let results = try session(script, shell: shell).run()
         #expect(results.map(\.candidate.id) == ["c1", "c2"])
         #expect(shell.calls == ["docker rm c1", "docker rm c2"])
@@ -57,7 +55,7 @@ import Testing
     @Test func keepPersistsWorktreeAndQuitStopsEarly() throws {
         let shell = FakeShell()
         shell.respond("git", ["-C", "/r", "worktree", "remove", "/w/b"], stdout: "")
-        let script = Script(["n", "n", "k", "y"])
+        let script = Script(["n", "k", "y"])
         let results = try session(script, shell: shell).run()
         #expect(results.map(\.candidate.id) == ["/w/b"])
         #expect(script.kept == ["/w/a"])

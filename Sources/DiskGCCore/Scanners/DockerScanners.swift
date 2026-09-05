@@ -47,24 +47,6 @@ public struct DockerImageScanner: DiskScanner {
     }
 }
 
-public struct DockerVolumeScanner: DiskScanner {
-    public let id = ScannerID.dockerVolumes
-
-    public init() {}
-
-    public func scan(_ ctx: ScanContext) throws -> [Candidate] {
-        let probe = DockerProbe(shell: ctx.shell)
-        guard probe.available() else { return [] }
-        return try probe.danglingVolumes().map { volume in
-            Candidate(
-                scanner: id, tier: ctx.tier(id), group: "Docker volumes", id: volume.name, label: volume.name, detail: "dangling",
-                sizeBytes: volume.sizeBytes, staleDays: 0,
-                actions: [.run(command: "docker", arguments: ["volume", "rm", volume.name])]
-            )
-        }
-    }
-}
-
 public struct DockerBuildCacheScanner: DiskScanner {
     public let id = ScannerID.dockerBuildCache
 

@@ -14,7 +14,6 @@ public enum ScannerID: String, Codable, CaseIterable, Sendable {
     case dockerContainers = "docker_containers"
     case dockerImages = "docker_images"
     case dockerBuildCache = "docker_build_cache"
-    case dockerVolumes = "docker_volumes"
     case worktrees
 }
 
