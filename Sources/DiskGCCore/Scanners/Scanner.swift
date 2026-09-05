@@ -31,6 +31,10 @@ public struct ScanContext {
         self.environment = environment
     }
 
+    public func tier(_ id: ScannerID) -> Tier {
+        config.tier(of: id)
+    }
+
     public func size(of path: String) -> Int64 {
         (try? sizes.sizeBytes(of: path)) ?? 0
     }
@@ -48,7 +52,7 @@ public struct ScanContext {
     }
 }
 
-public protocol Scanner {
+public protocol DiskScanner {
     var id: ScannerID { get }
     func scan(_ ctx: ScanContext) throws -> [Candidate]
 }

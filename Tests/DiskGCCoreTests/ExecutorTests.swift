@@ -6,7 +6,7 @@ import Testing
     let fs = FileManager.default
 
     func candidate(_ actions: [Action], id: String = "c") -> Candidate {
-        Candidate(scanner: .buildArtifacts, group: "Build artifacts", id: id, label: id, sizeBytes: 100, staleDays: 9, tier: .auto, actions: actions)
+        Candidate(scanner: .buildArtifacts, group: "Build artifacts", id: id, label: id, sizeBytes: 100, staleDays: 9, actions: actions)
     }
 
     func makeExecutor(dryRun: Bool, shell: FakeShell = FakeShell(), never: [String] = []) -> (Executor, Journal) {

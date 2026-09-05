@@ -1,6 +1,6 @@
 import Foundation
 
-public struct XcodeScanner: Scanner {
+public struct XcodeScanner: DiskScanner {
     public let id = ScannerID.xcode
 
     public init() {}
@@ -15,7 +15,7 @@ public struct XcodeScanner: Scanner {
             let stale = ctx.days(since: Walker.newestEntryDate(in: path, fs: ctx.fs))
             guard stale >= ctx.config.inactiveDays.derivedData else { return nil }
             return Candidate(
-                scanner: id, group: "Xcode", id: path, label: "DerivedData/" + (path as NSString).lastPathComponent,
+                scanner: id, tier: ctx.tier(id), group: "Xcode", id: path, label: "DerivedData/" + (path as NSString).lastPathComponent,
                 detail: ctx.display(path), sizeBytes: ctx.size(of: path), staleDays: stale,
                 actions: [.removeDirectory(path: path, root: root)]
             )
@@ -32,7 +32,7 @@ public struct XcodeScanner: Scanner {
             let sorted = paths.sorted { Self.version(of: $0).lexicographicallyPrecedes(Self.version(of: $1)) }
             return sorted.dropLast().map { path in
                 Candidate(
-                    scanner: id, group: "Xcode", id: path, label: "iOS DeviceSupport/" + (path as NSString).lastPathComponent,
+                    scanner: id, tier: ctx.tier(id), group: "Xcode", id: path, label: "iOS DeviceSupport/" + (path as NSString).lastPathComponent,
                     detail: "superseded by " + (sorted.last! as NSString).lastPathComponent,
                     sizeBytes: ctx.size(of: path), staleDays: ctx.days(since: Walker.modificationDate(path, fs: ctx.fs)),
                     actions: [.removeDirectory(path: path, root: root)]

@@ -38,8 +38,8 @@ public struct Candidate: Equatable, Codable, Sendable {
     public var actions: [Action]
 
     public init(
-        scanner: ScannerID, group: String, id: String, label: String, detail: String? = nil,
-        sizeBytes: Int64, staleDays: Int, tier: Tier = .auto, actions: [Action]
+        scanner: ScannerID, tier: Tier = .auto, group: String, id: String, label: String, detail: String? = nil,
+        sizeBytes: Int64, staleDays: Int, actions: [Action]
     ) {
         self.scanner = scanner
         self.group = group

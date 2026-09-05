@@ -1,6 +1,6 @@
 import Foundation
 
-public struct BuildArtifactScanner: Scanner {
+public struct BuildArtifactScanner: DiskScanner {
     public let id = ScannerID.buildArtifacts
     public static let names: Set<String> = ["node_modules", "target", ".angular", ".nx", "dist", "build", ".next", ".gradle"]
     public static let maxDepth = 12
@@ -38,7 +38,7 @@ public struct BuildArtifactScanner: Scanner {
             let ignored = ctx.git.ignoredPaths(treePaths, in: tree)
             for path in treePaths where ignored.contains(path) {
                 result.append(Candidate(
-                    scanner: id, group: "Build artifacts", id: path, label: ctx.display(path),
+                    scanner: id, tier: ctx.tier(id), group: "Build artifacts", id: path, label: ctx.display(path),
                     detail: "\((tree as NSString).lastPathComponent) idle \(stale)d",
                     sizeBytes: ctx.size(of: path), staleDays: stale,
                     actions: [.removeDirectory(path: path, root: root)]

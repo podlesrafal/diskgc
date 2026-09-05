@@ -1,6 +1,6 @@
 import Foundation
 
-public struct DockerContainerScanner: Scanner {
+public struct DockerContainerScanner: DiskScanner {
     public let id = ScannerID.dockerContainers
 
     public init() {}
@@ -13,7 +13,7 @@ public struct DockerContainerScanner: Scanner {
             let stale = ctx.days(since: container.finishedAt ?? container.createdAt)
             guard stale >= ctx.config.inactiveDays.dockerContainer else { return nil }
             return Candidate(
-                scanner: id, group: "Docker containers", id: container.id, label: container.name,
+                scanner: id, tier: ctx.tier(id), group: "Docker containers", id: container.id, label: container.name,
                 detail: "\(container.status) \(stale)d ago, \(container.imageRef)", sizeBytes: container.sizeRw, staleDays: stale,
                 actions: [.run(command: "docker", arguments: ["rm", container.id])]
             )
@@ -21,7 +21,7 @@ public struct DockerContainerScanner: Scanner {
     }
 }
 
-public struct DockerImageScanner: Scanner {
+public struct DockerImageScanner: DiskScanner {
     public let id = ScannerID.dockerImages
 
     public init() {}
@@ -38,7 +38,7 @@ public struct DockerImageScanner: Scanner {
                 ? [.run(command: "docker", arguments: ["rmi", image.id])]
                 : image.tags.map { .run(command: "docker", arguments: ["rmi", $0]) }
             return Candidate(
-                scanner: id, group: "Docker images", id: image.id,
+                scanner: id, tier: ctx.tier(id), group: "Docker images", id: image.id,
                 label: image.dangling ? "<none> \(shortID)" : image.tags.joined(separator: ", "),
                 detail: image.dangling ? "dangling" : nil, sizeBytes: image.sizeBytes,
                 staleDays: ctx.days(since: image.createdAt), actions: actions
@@ -47,7 +47,7 @@ public struct DockerImageScanner: Scanner {
     }
 }
 
-public struct DockerVolumeScanner: Scanner {
+public struct DockerVolumeScanner: DiskScanner {
     public let id = ScannerID.dockerVolumes
 
     public init() {}
@@ -57,7 +57,7 @@ public struct DockerVolumeScanner: Scanner {
         guard probe.available() else { return [] }
         return try probe.danglingVolumes().map { volume in
             Candidate(
-                scanner: id, group: "Docker volumes", id: volume.name, label: volume.name, detail: "dangling",
+                scanner: id, tier: ctx.tier(id), group: "Docker volumes", id: volume.name, label: volume.name, detail: "dangling",
                 sizeBytes: volume.sizeBytes, staleDays: 0,
                 actions: [.run(command: "docker", arguments: ["volume", "rm", volume.name])]
             )
@@ -65,7 +65,7 @@ public struct DockerVolumeScanner: Scanner {
     }
 }
 
-public struct DockerBuildCacheScanner: Scanner {
+public struct DockerBuildCacheScanner: DiskScanner {
     public let id = ScannerID.dockerBuildCache
 
     public init() {}
@@ -76,7 +76,7 @@ public struct DockerBuildCacheScanner: Scanner {
         let size = try probe.buildCacheBytes()
         guard size > 0 else { return [] }
         return [Candidate(
-            scanner: id, group: "Docker build cache", id: "docker-build-cache", label: "build cache", detail: "reclaimable",
+            scanner: id, tier: ctx.tier(id), group: "Docker build cache", id: "docker-build-cache", label: "build cache", detail: "reclaimable",
             sizeBytes: size, staleDays: 0, actions: [.run(command: "docker", arguments: ["builder", "prune", "-af"])]
         )]
     }

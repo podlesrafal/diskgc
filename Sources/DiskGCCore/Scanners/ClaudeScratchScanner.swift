@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ClaudeScratchScanner: Scanner {
+public struct ClaudeScratchScanner: DiskScanner {
     public let id = ScannerID.claudeScratch
 
     public init() {}
@@ -25,7 +25,7 @@ public struct ClaudeScratchScanner: Scanner {
         var actions: [Action] = [.removeDirectory(path: session, root: ctx.tmpRoot)]
         for repo in Set(repos).sorted() { actions.append(.worktreePrune(repo: repo)) }
         return Candidate(
-            scanner: id, group: "Claude scratchpads", id: session, label: label,
+            scanner: id, tier: ctx.tier(id), group: "Claude scratchpads", id: session, label: label,
             detail: repos.isEmpty ? nil : "worktree of \(Set(repos).sorted().map(ctx.display).joined(separator: ", "))",
             sizeBytes: ctx.size(of: session), staleDays: stale, actions: actions
         )

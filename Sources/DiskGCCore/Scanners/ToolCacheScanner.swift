@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ToolCacheScanner: Scanner {
+public struct ToolCacheScanner: DiskScanner {
     public let id = ScannerID.toolCaches
 
     public init() {}
@@ -27,7 +27,7 @@ public struct ToolCacheScanner: Scanner {
         entries(ctx).compactMap { entry in
             guard Walker.isRealDirectory(entry.path, fs: ctx.fs) else { return nil }
             return Candidate(
-                scanner: id, group: "Tool caches", id: entry.path, label: entry.name,
+                scanner: id, tier: ctx.tier(id), group: "Tool caches", id: entry.path, label: entry.name,
                 detail: ctx.display(entry.path), sizeBytes: ctx.size(of: entry.path),
                 staleDays: ctx.days(since: Walker.newestEntryDate(in: entry.path, fs: ctx.fs)),
                 actions: [entry.action]

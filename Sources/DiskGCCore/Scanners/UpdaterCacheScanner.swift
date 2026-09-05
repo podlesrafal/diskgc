@@ -1,6 +1,6 @@
 import Foundation
 
-public struct UpdaterCacheScanner: Scanner {
+public struct UpdaterCacheScanner: DiskScanner {
     public let id = ScannerID.updaterCaches
     public static let minimumAgeDays = 7
 
@@ -19,7 +19,7 @@ public struct UpdaterCacheScanner: Scanner {
             let stale = ctx.days(since: Walker.newestEntryDate(in: path, fs: ctx.fs))
             guard stale >= Self.minimumAgeDays else { return nil }
             return Candidate(
-                scanner: id, group: "Updater caches", id: path, label: (path as NSString).lastPathComponent,
+                scanner: id, tier: ctx.tier(id), group: "Updater caches", id: path, label: (path as NSString).lastPathComponent,
                 detail: ctx.display(path), sizeBytes: ctx.size(of: path), staleDays: stale,
                 actions: [.removeDirectory(path: path, root: root)]
             )
