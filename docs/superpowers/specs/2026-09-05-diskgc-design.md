@@ -47,20 +47,21 @@ action needed to remove it. Scanners do not invent data: they shell out to `du`,
 
 | Name | Path | Action |
 |---|---|---|
-| uv | `~/.cache/uv` | `uv cache clean` |
+| uv | `~/.cache/uv` | remove directory contents (equivalent to `uv cache clean`, no PATH dependency under launchd) |
 | yarn-berry | `~/.yarn/berry/cache` | remove directory contents |
 | pnpm | `~/Library/pnpm/store` | `pnpm store prune` |
-| npm | `~/.npm/_cacache` | `npm cache clean --force` |
-| go-mod | `~/go/pkg/mod` (or `GOMODCACHE`) | `go clean -modcache` |
+| npm | `~/.npm/_cacache` | remove directory contents |
+| go-mod | `~/go/pkg/mod` (or `GOMODCACHE`) | `go clean -modcache` (module files are read-only) |
 
 Staleness is the age of the newest entry in the directory. Size is `du -sk`.
 
-**build_artifacts** — walk `project_roots` (default `~/Documents/Projects`) to depth 6,
+**build_artifacts** — walk `project_roots` (default `~/Documents/Projects`) to depth 12
+(Maven multi-module trees nest `target` directories up to 11 levels deep),
 skipping `.git` and never descending into a matched directory. A directory named
 `node_modules`, `target`, `.angular`, `.nx`, `dist`, `build`, `.next` or `.gradle` is a
 candidate only when all of these hold:
 
-1. it lies inside a git work tree (`git rev-parse --show-toplevel`),
+1. it lies inside a git work tree (nearest ancestor containing `.git`),
 2. git ignores it (`git check-ignore -q`), which separates `build/` artifacts from `build/`
    scripts,
 3. the work tree has been inactive for at least `inactive_days.build_artifacts` (default 7),
@@ -121,8 +122,9 @@ could be lost, and rule 1 excludes that. Action: `git worktree remove <path>` wi
 `--force`, ever. The user can mark a worktree "keep" during review; it is then excluded
 until the mark is cleared.
 
-Registered worktrees whose directory no longer exists are pruned automatically
-(`git worktree prune` removes only bookkeeping).
+Registered worktrees whose directory no longer exists are pruned automatically: the
+worktree scanner emits an `auto`-tier candidate per repository (`git worktree prune` removes
+only bookkeeping).
 
 ## Safety
 
@@ -162,7 +164,7 @@ The process lowers its own I/O priority (launchd `ProcessType: Background`, `Nic
 | `diskgc status [--rescan] [--json]` | free space, candidates per tier and group with sizes |
 | `diskgc tick [--dry-run]` | the pressure loop above |
 | `diskgc clean [--dry-run] [--scanner name] [--all]` | run the auto tier now; `--all` ignores the pressure target and removes every stale candidate |
-| `diskgc review [--dry-run]` | interactive walk through ask groups: `y` remove, `n` skip, `l` list items, `k` keep forever (worktrees), `q` quit |
+| `diskgc review [--dry-run]` | interactive walk through ask groups in the order containers, images, volumes, build cache, worktrees. Containers, images and build cache are decided per group (`y` remove all, `n` skip, `l` list, `q` quit); volumes and worktrees are decided item by item (`y`, `n`, `k` keep forever for worktrees, `q`). |
 | `diskgc install` / `diskgc uninstall` | copy the binary to `~/.local/bin/diskgc`, write and load `~/Library/LaunchAgents/dev.rpo.diskgc.plist` (StartInterval 1800, RunAtLoad), create a default config if missing |
 | `diskgc log [--limit n]` | print the journal |
 
