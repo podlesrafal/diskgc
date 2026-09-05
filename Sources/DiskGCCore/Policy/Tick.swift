@@ -10,6 +10,18 @@ public struct TickReport: Equatable {
     public var askTotal: Int64
     public var notified: Bool
     public var state: State
+
+    public init(freeBefore: Int64, freeAfter: Int64, target: Int64, candidates: [Candidate], errors: [String], executed: [ExecutionResult], askTotal: Int64, notified: Bool, state: State) {
+        self.freeBefore = freeBefore
+        self.freeAfter = freeAfter
+        self.target = target
+        self.candidates = candidates
+        self.errors = errors
+        self.executed = executed
+        self.askTotal = askTotal
+        self.notified = notified
+        self.state = state
+    }
 }
 
 public struct Tick {
