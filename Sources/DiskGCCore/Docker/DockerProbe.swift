@@ -22,6 +22,15 @@ public struct DockerImage: Equatable {
     public var dangling: Bool { tags.isEmpty }
 }
 
+public struct DockerVolume: Equatable {
+    public var name: String
+    public var sizeBytes: Int64
+    public var links: Int
+    public var anonymous: Bool
+
+    public var unused: Bool { links == 0 }
+}
+
 public struct DockerProbe {
     let shell: ShellRunner
 
@@ -67,6 +76,34 @@ public struct DockerProbe {
             }
         }
         return order.compactMap { byID[$0] }
+    }
+
+    struct VolumeRow: Decodable {
+        var name: String
+        var size: String
+        var links: String
+        var labels: String
+
+        enum CodingKeys: String, CodingKey {
+            case name = "Name"
+            case size = "Size"
+            case links = "Links"
+            case labels = "Labels"
+        }
+    }
+
+    public static let anonymousLabel = "com.docker.volume.anonymous"
+
+    public func volumes() throws -> [DockerVolume] {
+        let result = try shell.run("docker", ["system", "df", "-v", "--format", "{{json .Volumes}}"], cwd: nil)
+        guard let data = result.stdout.data(using: .utf8),
+              let rows = try? JSONDecoder().decode([VolumeRow].self, from: data) else { return [] }
+        return rows.map { row in
+            DockerVolume(
+                name: row.name, sizeBytes: HumanSize.bytes(row.size), links: Int(row.links) ?? 0,
+                anonymous: row.labels.contains(Self.anonymousLabel)
+            )
+        }
     }
 
     struct DfRow: Decodable {

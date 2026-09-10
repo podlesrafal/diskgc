@@ -38,6 +38,10 @@ public struct ProcessShell: ShellRunner {
         )
     }
 
+    public func locate(_ command: String) -> String? {
+        try? resolve(command)
+    }
+
     func resolve(_ command: String) throws -> String {
         if command.contains("/") { return command }
         let envPath = ProcessInfo.processInfo.environment["PATH"] ?? ""

@@ -57,6 +57,18 @@ import Testing
         #expect(try fs.contentsOfDirectory(atPath: dir).isEmpty)
     }
 
+    @Test func removesReadOnlyCacheTree() throws {
+        let root = TestSupport.tempDir()
+        let dir = "\(root)/cache/mod"
+        TestSupport.touch("\(dir)/pkg/a.txt")
+        try fs.setAttributes([.posixPermissions: NSNumber(value: 0o555 as UInt16)], ofItemAtPath: "\(dir)/pkg/a.txt")
+        try fs.setAttributes([.posixPermissions: NSNumber(value: 0o555 as UInt16)], ofItemAtPath: "\(dir)/pkg")
+        let (executor, _) = makeExecutor(dryRun: false)
+        let result = executor.execute(candidate([.removeContents(path: dir, root: root)]))
+        #expect(result.ok)
+        #expect(try fs.contentsOfDirectory(atPath: dir).isEmpty)
+    }
+
     @Test func refusesSymlinkAndLeavesTargetIntact() throws {
         let root = TestSupport.tempDir()
         let real = "\(root)/proj/real"

@@ -16,10 +16,13 @@ public struct ShellResult: Equatable, Sendable {
 
 public protocol ShellRunner {
     func run(_ command: String, _ arguments: [String], cwd: String?) throws -> ShellResult
+    func locate(_ command: String) -> String?
 }
 
 public extension ShellRunner {
     func run(_ command: String, _ arguments: [String]) throws -> ShellResult {
         try run(command, arguments, cwd: nil)
     }
+
+    func locate(_ command: String) -> String? { nil }
 }

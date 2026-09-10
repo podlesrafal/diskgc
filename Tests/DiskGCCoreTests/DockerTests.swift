@@ -33,6 +33,12 @@ enum DockerFixtures {
         \(danglingImage)\t<none>\t<none>\t300MB\t2026-08-01 10:00:00 +0200 CEST
 
         """)
+        shell.respond("docker", ["system", "df", "-v", "--format", "{{json .Volumes}}"], stdout: """
+        [{"Name":"aaa111bbb222","Size":"1.5GB","Links":"0","Labels":"com.docker.volume.anonymous="},
+         {"Name":"ccc333ddd444","Size":"200MB","Links":"1","Labels":"com.docker.volume.anonymous="},
+         {"Name":"apim_mongodata","Size":"5.7GB","Links":"0","Labels":""},
+         {"Name":"eee555fff666","Size":"0B","Links":"0","Labels":"com.docker.volume.anonymous="}]
+        """)
         shell.respond("docker", ["system", "df", "--format", "{{json .}}"], stdout: """
         {"Active":"36","Reclaimable":"16.38GB (29%)","Size":"54.91GB","TotalCount":"62","Type":"Images"}
         {"Active":"0","Reclaimable":"2.332GB","Size":"2.723GB","TotalCount":"59","Type":"Build Cache"}
@@ -134,5 +140,27 @@ enum DockerFixtures {
         let ctx = ScanContext(config: .default, shell: shell, sizes: FixedSizeProbe(), home: "/nonexistent")
         #expect(try DockerContainerScanner().scan(ctx).isEmpty)
         #expect(try DockerImageScanner().scan(ctx).isEmpty)
+    }
+}
+
+@Suite struct DockerVolumeTests {
+    let now = Date(timeIntervalSince1970: 1_760_000_000)
+
+    @Test func onlyAnonymousVolumesWithoutContainersAreReviewable() throws {
+        let ctx = DockerFixtures.context(now: now)
+        let found = try DockerVolumeScanner().scan(ctx)
+        #expect(found.map(\.id) == ["aaa111bbb222", "eee555fff666"])
+        #expect(found[0].sizeBytes == 1_500_000_000)
+        #expect(found[0].detail == "anonymous, no container")
+        #expect(found[0].actions == [.run(command: "docker", arguments: ["volume", "rm", "aaa111bbb222"])])
+    }
+
+    @Test func namedVolumesAreNeverTouchedEvenWhenConfiguredAuto() throws {
+        var config = Config.default
+        config.scanners[.dockerVolumes] = .auto
+        let ctx = ScanContext(config: config, shell: DockerFixtures.shell(now: now), sizes: FixedSizeProbe(), now: now, home: "/nonexistent")
+        let found = try DockerVolumeScanner().scan(ctx)
+        #expect(!found.contains { $0.id == "apim_mongodata" })
+        #expect(found.allSatisfy { $0.tier == .ask })
     }
 }

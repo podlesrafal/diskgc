@@ -28,7 +28,7 @@ Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the
 | `diskgc status [--rescan] [--verbose] [--json]` | free space and reclaimable candidates per tier |
 | `diskgc tick [--dry-run]` | one pressure cycle: remove auto candidates until the target is reached, notify about the ask tier |
 | `diskgc clean [--dry-run] [--all] [--scanner name]` | run the auto tier now; `--all` ignores the target |
-| `diskgc review [--dry-run]` | walk through Docker containers, images, build cache and idle worktrees |
+| `diskgc review [--dry-run]` | walk through stale build artifacts, Docker containers, images, build cache, anonymous volumes and idle worktrees |
 | `diskgc log [--limit n]` | journal of every planned and performed action |
 | `diskgc install` / `diskgc uninstall` | manage the LaunchAgent |
 
@@ -36,8 +36,12 @@ Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the
 
 **auto** (only while free space is below `target_free_gb`, most stale first):
 
-- tool caches: uv, yarn berry, npm, pnpm store (`pnpm store prune`), go module cache (`go clean -modcache`)
-- build artifacts (`node_modules`, `target`, `.angular`, `.nx`, `dist`, `build`, `.next`, `.gradle`) that git ignores, in work trees idle for 7+ days and not the working directory of any running process
+- tool caches: uv, yarn berry, npm, pnpm store (`pnpm store prune`), go module cache (`go clean -modcache`);
+  when the CLI is not installed the store is cleared directly, read-only cache trees included
+- build artifacts (`node_modules`, `target`, `.next`, `.gradle`, `.venv`, `__pycache__`, `.terraform`, `Pods`,
+  `.turbo`, `dist`, `build`, `out`, `coverage` and friends) that git ignores, last written 7+ days ago, inside a
+  git work tree that is not the working directory of any running process. Staleness is the artifact's own age -
+  a repo whose git index you touched today can still hold a `node_modules` nobody has rebuilt in a month
 - Xcode DerivedData idle 14+ days and superseded iOS DeviceSupport versions
 - JetBrains caches and logs of versions idle 30+ days
 - updater caches (`*.ShipIt`, `*-updater`, `com.docker.install`) older than 7 days
@@ -48,8 +52,14 @@ Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the
 
 - Docker containers stopped for 3+ days, images not used by any container and not referenced by a compose file under your project roots, build cache
 - linked git worktrees that are clean and idle for 21+ days (`git worktree remove`, never `--force`)
+- build artifacts that are stale themselves but sit in a repo you are still working in - the auto tier will not
+  touch those on its own
+- anonymous Docker volumes (`com.docker.volume.anonymous`) that no container uses
 
-**never**: Docker volumes (the only Docker resource that holds data; remove them yourself with `docker volume rm`), `~/.m2`, `~/Library/Application Support/Claude`, everything outside the roots each scanner declares.
+**never**: named Docker volumes (a name means someone meant to keep it - remove those yourself with
+`docker volume rm`), build artifacts outside a git work tree (nothing proves they are regenerable), `~/.m2`,
+`~/Library/Application Support/Claude`, everything outside the roots each scanner declares. Volumes stay in the
+ask tier even if the config sets `docker_volumes: auto`.
 
 ## Config
 
@@ -57,6 +67,8 @@ Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the
 
 ```yaml
 target_free_gb: 60
+warn_free_gb: 15
+warn_cooldown_hours: 3
 notify_min_gb: 5
 notify_cooldown_hours: 24
 rescan_hours: 6
@@ -79,11 +91,18 @@ scanners:          # auto | ask | off
   docker_containers: ask
   docker_images: ask
   docker_build_cache: ask
+  docker_volumes: ask
   worktrees: ask
 never:
   - ~/.m2
   - ~/Library/Application Support/Claude
 ```
+
+`warn_free_gb` is the low-space alarm: whenever a tick ends below it you get a notification
+naming what is left, what the auto tier reclaimed and which actions failed, repeated every
+`warn_cooldown_hours`. `notify_min_gb` is unrelated to free space - it only decides how much
+has to sit in the ask tier before diskgc reminds you to run `diskgc review`, and it stays
+quiet while the low-space alarm is active.
 
 State (size cache, kept worktrees, last notification) lives in `~/.local/share/diskgc/state.json`,
 the journal in `~/.local/share/diskgc/journal.jsonl`, launchd output in `~/Library/Logs/diskgc/`.

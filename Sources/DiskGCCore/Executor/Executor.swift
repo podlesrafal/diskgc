@@ -63,11 +63,11 @@ public struct Executor {
         switch action {
         case .removeDirectory(let path, let root):
             try PathSafety.validate(path, root: root, never: never, fs: fs)
-            try fs.removeItem(atPath: path)
+            try remove(path)
         case .removeContents(let path, let root):
             try PathSafety.validate(path, root: root, never: never, fs: fs)
             for entry in try fs.contentsOfDirectory(atPath: path) {
-                try fs.removeItem(atPath: "\(path)/\(entry)")
+                try remove("\(path)/\(entry)")
             }
         case .run(let command, let arguments):
             try runChecked(command, arguments)
@@ -75,6 +75,30 @@ public struct Executor {
             try runChecked("git", ["-C", repo, "worktree", "remove", path])
         case .worktreePrune(let repo):
             try runChecked("git", ["-C", repo, "worktree", "prune"])
+        }
+    }
+
+    func remove(_ path: String) throws {
+        do {
+            try fs.removeItem(atPath: path)
+        } catch {
+            // Caches written by go and cargo are read-only, so unlinking needs the write bit back.
+            makeWritable(path)
+            try fs.removeItem(atPath: path)
+        }
+    }
+
+    func makeWritable(_ path: String) {
+        var pending = [path]
+        if let walker = fs.enumerator(atPath: path) {
+            while let entry = walker.nextObject() as? String { pending.append("\(path)/\(entry)") }
+        }
+        for item in pending {
+            let attributes = try? fs.attributesOfItem(atPath: item)
+            guard let attributes, attributes[.type] as? FileAttributeType != .typeSymbolicLink,
+                  let mode = (attributes[.posixPermissions] as? NSNumber)?.uint16Value
+            else { continue }
+            try? fs.setAttributes([.posixPermissions: NSNumber(value: mode | 0o300)], ofItemAtPath: item)
         }
     }
 

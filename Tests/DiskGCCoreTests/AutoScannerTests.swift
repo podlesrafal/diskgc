@@ -8,10 +8,19 @@ struct FixedSizeProbe: SizeProbe {
 }
 
 extension ScanContext {
-    static func test(home: String, roots: [String] = [], tmpRoot: String = "/nonexistent", activeCwds: [String] = [], environment: [String: String] = [:]) -> ScanContext {
+    static func test(
+        home: String, roots: [String] = [], tmpRoot: String = "/nonexistent", activeCwds: [String] = [],
+        environment: [String: String] = [:], shell: ShellRunner = ProcessShell()
+    ) -> ScanContext {
         var config = Config.default
         config.projectRoots = roots
-        return ScanContext(config: config, shell: ProcessShell(), sizes: FixedSizeProbe(), home: home, activeCwds: activeCwds, tmpRoot: tmpRoot, environment: environment)
+        return ScanContext(config: config, shell: shell, sizes: FixedSizeProbe(), home: home, activeCwds: activeCwds, tmpRoot: tmpRoot, environment: environment)
+    }
+
+    static func shell(with executables: Set<String>) -> FakeShell {
+        let shell = FakeShell()
+        shell.executables = executables
+        return shell
     }
 }
 
@@ -20,11 +29,21 @@ extension ScanContext {
         let home = TestSupport.tempDir("home")
         TestSupport.touch("\(home)/.cache/uv/x")
         TestSupport.mkdir("\(home)/go/pkg/mod")
-        let found = try ToolCacheScanner().scan(.test(home: home))
+        let found = try ToolCacheScanner().scan(.test(home: home, shell: ScanContext.shell(with: ["go"])))
         #expect(found.map(\.label) == ["uv", "go-mod"])
         #expect(found[0].actions == [.removeContents(path: "\(home)/.cache/uv", root: home)])
         #expect(found[1].actions == [.run(command: "go", arguments: ["clean", "-modcache"])])
         #expect(found.allSatisfy { $0.group == "Tool caches" && $0.sizeBytes == 1_000 })
+    }
+
+    @Test func toolCachesClearStoresWhenTheirCliIsMissing() throws {
+        let home = TestSupport.tempDir("home")
+        TestSupport.mkdir("\(home)/Library/pnpm/store")
+        TestSupport.mkdir("\(home)/go/pkg/mod")
+        let found = try ToolCacheScanner().scan(.test(home: home, shell: ScanContext.shell(with: [])))
+        #expect(found.map(\.label) == ["pnpm", "go-mod"])
+        #expect(found[0].actions == [.removeContents(path: "\(home)/Library/pnpm/store", root: "\(home)/Library/pnpm")])
+        #expect(found[1].actions == [.removeContents(path: "\(home)/go/pkg/mod", root: "\(home)/go/pkg")])
     }
 
     @Test func toolCachesHonourGoModCacheEnvironment() throws {
@@ -109,8 +128,12 @@ extension ScanContext {
         TestSupport.mkdir("\(idle)/sub/target")
         TestSupport.mkdir("\(idle)/scripts/build")
         TestSupport.setModificationDate("\(idle)/.git/index", daysAgo: 10)
+        for path in ["\(idle)/node_modules/x", "\(idle)/node_modules", "\(idle)/sub/target"] {
+            TestSupport.setModificationDate(path, daysAgo: 10)
+        }
         let busy = try repo.addWorktree("busy")
         TestSupport.mkdir("\(busy)/node_modules")
+        TestSupport.setModificationDate("\(busy)/node_modules", daysAgo: 10)
         TestSupport.setModificationDate("\(idle)/.git/worktrees/wt-busy/index", daysAgo: 10)
         let fresh = try repo.addWorktree("fresh")
         TestSupport.mkdir("\(fresh)/node_modules")
@@ -119,7 +142,28 @@ extension ScanContext {
         let found = try BuildArtifactScanner().scan(.test(home: "/nonexistent", roots: [repo.root], activeCwds: ["\(busy)/sub"]))
         #expect(found.map(\.id) == ["\(idle)/node_modules", "\(idle)/sub/target"])
         #expect(found[0].staleDays == 10)
+        #expect(found[0].tier == .auto)
         #expect(found[0].actions == [.removeDirectory(path: "\(idle)/node_modules", root: repo.root)])
-        #expect(found[0].detail == "main idle 10d")
+        #expect(found[0].detail == "built 10d ago, main idle 10d")
+    }
+
+    @Test func freshlyBuiltArtifactsAreLeftAlone() throws {
+        let repo = try TempRepo()
+        TestSupport.mkdir("\(repo.repo)/node_modules/x")
+        TestSupport.setModificationDate("\(repo.repo)/.git/index", daysAgo: 30)
+        let found = try BuildArtifactScanner().scan(.test(home: "/nonexistent", roots: [repo.root]))
+        #expect(found.isEmpty)
+    }
+
+    @Test func staleArtifactsInAnActiveRepoNeedReview() throws {
+        let repo = try TempRepo()
+        TestSupport.mkdir("\(repo.repo)/node_modules/x")
+        for path in ["\(repo.repo)/node_modules/x", "\(repo.repo)/node_modules"] {
+            TestSupport.setModificationDate(path, daysAgo: 30)
+        }
+        let found = try BuildArtifactScanner().scan(.test(home: "/nonexistent", roots: [repo.root]))
+        #expect(found.map(\.id) == ["\(repo.repo)/node_modules"])
+        #expect(found[0].tier == .ask)
+        #expect(found[0].detail == "built 30d ago, main idle 0d")
     }
 }

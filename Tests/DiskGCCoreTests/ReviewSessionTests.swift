@@ -62,6 +62,25 @@ import Testing
         #expect(shell.calls == ["git -C /r worktree remove /w/b"])
     }
 
+    @Test func reviewsAskCandidatesFromAnAutoScanner() throws {
+        let artifacts = [
+            Candidate(scanner: .buildArtifacts, tier: .auto, group: "Build artifacts", id: "/p/fresh/node_modules", label: "~/p/fresh/node_modules", sizeBytes: gb, staleDays: 9, actions: []),
+            Candidate(scanner: .buildArtifacts, tier: .ask, group: "Build artifacts", id: "/p/live/node_modules", label: "~/p/live/node_modules", detail: "built 30d ago, live idle 0d", sizeBytes: 2 * gb, staleDays: 30, actions: []),
+        ]
+        let script = Script(["l", "n"])
+        let shell = FakeShell()
+        let ctx = ScanContext(config: .default, shell: shell, sizes: FixedSizeProbe(), home: "/nonexistent")
+        let executor = Executor(shell: shell, fs: .default, never: [], journal: Journal(path: TestSupport.tempDir() + "/j.jsonl"), dryRun: false)
+        let session = ReviewSession(
+            ctx: ctx, executor: executor, io: script.io,
+            scan: { _, id in ScanResult(candidates: id == .buildArtifacts ? artifacts : []) }, keep: { _ in }
+        )
+        _ = try session.run()
+        #expect(script.prompts.first == "Build artifacts: 1 items, 2.0 GB [y/n/l/q] ")
+        #expect(script.printed.contains("  ~/p/live/node_modules (2.0 GB, built 30d ago, live idle 0d)"))
+        #expect(!script.printed.contains { $0.contains("fresh") })
+    }
+
     @Test func quitAbortsRemainingGroups() throws {
         let shell = FakeShell()
         let script = Script(["q"])

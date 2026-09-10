@@ -13,7 +13,7 @@ public struct ScanResult: Equatable {
 public enum ScannerRegistry {
     public static let all: [DiskScanner] = [
         ToolCacheScanner(), BuildArtifactScanner(), XcodeScanner(), JetBrainsScanner(), UpdaterCacheScanner(), ClaudeScratchScanner(),
-        DockerContainerScanner(), DockerImageScanner(), DockerBuildCacheScanner(), WorktreeScanner(),
+        DockerContainerScanner(), DockerImageScanner(), DockerBuildCacheScanner(), DockerVolumeScanner(), WorktreeScanner(),
     ]
 
     public static func scan(_ ctx: ScanContext, only: Set<ScannerID>? = nil, scanners: [DiskScanner] = all) -> ScanResult {

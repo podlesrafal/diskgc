@@ -11,7 +11,7 @@ public struct ReviewIO {
 }
 
 public struct ReviewSession {
-    public static let order: [ScannerID] = [.dockerContainers, .dockerImages, .dockerBuildCache, .worktrees]
+    public static let order: [ScannerID] = [.buildArtifacts, .dockerContainers, .dockerImages, .dockerBuildCache, .dockerVolumes, .worktrees]
     static let itemLevel: Set<ScannerID> = [.worktrees]
 
     let ctx: ScanContext
@@ -34,7 +34,7 @@ public struct ReviewSession {
 
     public func run() throws -> [ExecutionResult] {
         var results: [ExecutionResult] = []
-        for id in Self.order where ctx.tier(id) == .ask {
+        for id in Self.order where ctx.tier(id) != .off {
             let scanned = scan(ctx, id)
             scanned.errors.forEach { io.print("warning: \($0)") }
             let candidates = scanned.candidates.filter { $0.tier == .ask }

@@ -43,6 +43,10 @@ public struct ScanContext {
         Staleness.days(since: date, now: now)
     }
 
+    public func hasCommand(_ command: String) -> Bool {
+        shell.locate(command) != nil
+    }
+
     public func isInUse(_ tree: String) -> Bool {
         ProcessCwd.isInUse(tree, active: activeCwds)
     }

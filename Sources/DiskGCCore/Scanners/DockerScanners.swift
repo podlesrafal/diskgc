@@ -63,3 +63,23 @@ public struct DockerBuildCacheScanner: DiskScanner {
         )]
     }
 }
+
+public struct DockerVolumeScanner: DiskScanner {
+    public let id = ScannerID.dockerVolumes
+
+    public init() {}
+
+    public func scan(_ ctx: ScanContext) throws -> [Candidate] {
+        let probe = DockerProbe(shell: ctx.shell)
+        guard probe.available() else { return [] }
+        return try probe.volumes().compactMap { volume in
+            guard volume.unused, volume.anonymous else { return nil }
+            return Candidate(
+                scanner: id, tier: .ask, group: "Docker volumes", id: volume.name,
+                label: String(volume.name.prefix(12)), detail: "anonymous, no container",
+                sizeBytes: volume.sizeBytes, staleDays: 0,
+                actions: [.run(command: "docker", arguments: ["volume", "rm", volume.name])]
+            )
+        }
+    }
+}
