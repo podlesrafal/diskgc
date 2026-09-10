@@ -123,4 +123,29 @@ struct StubScanner: DiskScanner {
         let tooSmall = try harness.tick(config: config, ask: [ask[1]])
         #expect(!tooSmall.notified)
     }
+
+    @Test func warnsWhileFreeSpaceStaysBelowThreshold() throws {
+        var config = Config.default
+        config.warnFreeGB = 15
+        let gb = ByteFormat.gigabyte
+        let ask = [candidate("w1", scanner: .worktrees, tier: .ask, size: 1 * gb, stale: 30)]
+        let harness = Harness(freeSequence: [4 * gb])
+        let report = try harness.tick(config: config, ask: ask)
+        #expect(report.warned)
+        #expect(!report.notified)
+        #expect(harness.notifier.messages == ["Zostało 4.0 GB, 1.0 GB do przejrzenia: diskgc review"])
+        #expect(report.state.lastWarnedAt == Date(timeIntervalSince1970: 1_000_000))
+        let second = try harness.tick(config: config, state: report.state, ask: ask)
+        #expect(!second.warned)
+        #expect(harness.notifier.messages.count == 1)
+    }
+
+    @Test func warningNamesFailedAutoActions() {
+        let failed = ExecutionResult(
+            candidate: candidate("pnpm", scanner: .toolCaches, size: 2 * ByteFormat.gigabyte, stale: 1),
+            ok: false, message: "commandNotFound"
+        )
+        let text = Tick.warning(free: 3 * ByteFormat.gigabyte, reclaimed: ByteFormat.gigabyte, ask: [], executed: [failed])
+        #expect(text == "Zostało 3.0 GB, auto zwolniło 1.0 GB, nie powiodło się: pnpm")
+    }
 }

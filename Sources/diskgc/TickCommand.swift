@@ -29,6 +29,7 @@ enum Output {
         }
         if report.executed.isEmpty { print("  nothing removed") }
         print("  ask tier: \(ByteFormat.string(report.askTotal))\(report.notified ? " (notified)" : "")")
+        if report.warned { print("  low space warning sent") }
         for error in report.errors { print("  warning: \(error)") }
     }
 }

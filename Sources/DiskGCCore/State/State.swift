@@ -3,11 +3,13 @@ import Foundation
 public struct State: Codable, Equatable {
     public var sizes: [String: SizeEntry]
     public var lastNotifiedAt: Date?
+    public var lastWarnedAt: Date?
     public var keptWorktrees: [String]
 
-    public init(sizes: [String: SizeEntry] = [:], lastNotifiedAt: Date? = nil, keptWorktrees: [String] = []) {
+    public init(sizes: [String: SizeEntry] = [:], lastNotifiedAt: Date? = nil, lastWarnedAt: Date? = nil, keptWorktrees: [String] = []) {
         self.sizes = sizes
         self.lastNotifiedAt = lastNotifiedAt
+        self.lastWarnedAt = lastWarnedAt
         self.keptWorktrees = keptWorktrees
     }
 

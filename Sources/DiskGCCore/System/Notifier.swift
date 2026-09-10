@@ -13,7 +13,10 @@ public struct OSAScriptNotifier: Notifier {
 
     public func notify(title: String, message: String) {
         let script = "display notification \"\(Self.escape(message))\" with title \"\(Self.escape(title))\""
-        _ = try? shell.run("osascript", ["-e", script], cwd: nil)
+        let result = try? shell.run("osascript", ["-e", script], cwd: nil)
+        guard result?.succeeded != true else { return }
+        let detail = result.map { $0.stderr.trimmingCharacters(in: .whitespacesAndNewlines) } ?? "osascript not found"
+        FileHandle.standardError.write(Data("notification failed (\(detail)): \(title): \(message)\n".utf8))
     }
 
     static func escape(_ text: String) -> String {

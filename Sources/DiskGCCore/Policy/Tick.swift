@@ -9,9 +9,10 @@ public struct TickReport: Equatable {
     public var executed: [ExecutionResult]
     public var askTotal: Int64
     public var notified: Bool
+    public var warned: Bool
     public var state: State
 
-    public init(freeBefore: Int64, freeAfter: Int64, target: Int64, candidates: [Candidate], errors: [String], executed: [ExecutionResult], askTotal: Int64, notified: Bool, state: State) {
+    public init(freeBefore: Int64, freeAfter: Int64, target: Int64, candidates: [Candidate], errors: [String], executed: [ExecutionResult], askTotal: Int64, notified: Bool, warned: Bool = false, state: State) {
         self.freeBefore = freeBefore
         self.freeAfter = freeAfter
         self.target = target
@@ -20,6 +21,7 @@ public struct TickReport: Equatable {
         self.executed = executed
         self.askTotal = askTotal
         self.notified = notified
+        self.warned = warned
         self.state = state
     }
 }
@@ -57,20 +59,40 @@ public struct Tick {
         let askTotal = ask.reduce(0) { $0 + $1.sizeBytes }
         var state = ctx.state
         var notified = false
-        if askTotal >= Int64(ctx.config.notifyMinGB) * ByteFormat.gigabyte, cooldownPassed(state.lastNotifiedAt) {
+        var warned = false
+        let warnBelow = Int64(ctx.config.warnFreeGB) * ByteFormat.gigabyte
+        if free < warnBelow, cooldownPassed(state.lastWarnedAt, hours: ctx.config.warnCooldownHours) {
+            notifier.notify(
+                title: "diskgc: kończy się miejsce",
+                message: Self.warning(free: free, reclaimed: freeBefore < free ? free - freeBefore : 0, ask: ask, executed: executed)
+            )
+            state.lastWarnedAt = ctx.now
+            warned = true
+        } else if askTotal >= Int64(ctx.config.notifyMinGB) * ByteFormat.gigabyte,
+                  cooldownPassed(state.lastNotifiedAt, hours: ctx.config.notifyCooldownHours) {
             notifier.notify(title: "diskgc", message: Self.message(for: ask))
             state.lastNotifiedAt = ctx.now
             notified = true
         }
         return TickReport(
             freeBefore: freeBefore, freeAfter: free, target: target, candidates: scanned.candidates, errors: scanned.errors,
-            executed: executed, askTotal: askTotal, notified: notified, state: state
+            executed: executed, askTotal: askTotal, notified: notified, warned: warned, state: state
         )
     }
 
-    func cooldownPassed(_ last: Date?) -> Bool {
+    func cooldownPassed(_ last: Date?, hours: Int) -> Bool {
         guard let last else { return true }
-        return ctx.now.timeIntervalSince(last) >= Double(ctx.config.notifyCooldownHours) * 3600
+        return ctx.now.timeIntervalSince(last) >= Double(hours) * 3600
+    }
+
+    public static func warning(free: Int64, reclaimed: Int64, ask: [Candidate], executed: [ExecutionResult]) -> String {
+        var parts = ["Zostało \(ByteFormat.gigabytes(free)) GB"]
+        if reclaimed > 0 { parts.append("auto zwolniło \(ByteFormat.gigabytes(reclaimed)) GB") }
+        let askTotal = ask.reduce(0) { $0 + $1.sizeBytes }
+        if askTotal > 0 { parts.append("\(ByteFormat.gigabytes(askTotal)) GB do przejrzenia: diskgc review") }
+        let failed = executed.filter { !$0.ok }.map(\.candidate.label)
+        if !failed.isEmpty { parts.append("nie powiodło się: \(failed.joined(separator: ", "))") }
+        return parts.joined(separator: ", ")
     }
 
     public static func message(for ask: [Candidate]) -> String {

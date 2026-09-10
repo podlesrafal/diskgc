@@ -41,6 +41,8 @@ public struct InactiveDays: Codable, Equatable, Sendable {
 
 public struct Config: Codable, Equatable, Sendable {
     public var targetFreeGB: Int
+    public var warnFreeGB: Int
+    public var warnCooldownHours: Int
     public var notifyMinGB: Int
     public var notifyCooldownHours: Int
     public var rescanHours: Int
@@ -59,12 +61,15 @@ public struct Config: Codable, Equatable, Sendable {
     ]
 
     public init(
-        targetFreeGB: Int = 60, notifyMinGB: Int = 5, notifyCooldownHours: Int = 24, rescanHours: Int = 6,
+        targetFreeGB: Int = 60, warnFreeGB: Int = 15, warnCooldownHours: Int = 3,
+        notifyMinGB: Int = 5, notifyCooldownHours: Int = 24, rescanHours: Int = 6,
         projectRoots: [String] = ["~/Documents/Projects"], inactiveDays: InactiveDays = InactiveDays(),
         scanners: [ScannerID: Tier] = Config.defaultTiers,
         never: [String] = ["~/.m2", "~/Library/Application Support/Claude"]
     ) {
         self.targetFreeGB = targetFreeGB
+        self.warnFreeGB = warnFreeGB
+        self.warnCooldownHours = warnCooldownHours
         self.notifyMinGB = notifyMinGB
         self.notifyCooldownHours = notifyCooldownHours
         self.rescanHours = rescanHours
@@ -76,6 +81,8 @@ public struct Config: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case targetFreeGB = "target_free_gb"
+        case warnFreeGB = "warn_free_gb"
+        case warnCooldownHours = "warn_cooldown_hours"
         case notifyMinGB = "notify_min_gb"
         case notifyCooldownHours = "notify_cooldown_hours"
         case rescanHours = "rescan_hours"
@@ -89,6 +96,8 @@ public struct Config: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = Config.default
         targetFreeGB = try c.decodeIfPresent(Int.self, forKey: .targetFreeGB) ?? d.targetFreeGB
+        warnFreeGB = try c.decodeIfPresent(Int.self, forKey: .warnFreeGB) ?? d.warnFreeGB
+        warnCooldownHours = try c.decodeIfPresent(Int.self, forKey: .warnCooldownHours) ?? d.warnCooldownHours
         notifyMinGB = try c.decodeIfPresent(Int.self, forKey: .notifyMinGB) ?? d.notifyMinGB
         notifyCooldownHours = try c.decodeIfPresent(Int.self, forKey: .notifyCooldownHours) ?? d.notifyCooldownHours
         rescanHours = try c.decodeIfPresent(Int.self, forKey: .rescanHours) ?? d.rescanHours
@@ -107,6 +116,8 @@ public struct Config: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(targetFreeGB, forKey: .targetFreeGB)
+        try c.encode(warnFreeGB, forKey: .warnFreeGB)
+        try c.encode(warnCooldownHours, forKey: .warnCooldownHours)
         try c.encode(notifyMinGB, forKey: .notifyMinGB)
         try c.encode(notifyCooldownHours, forKey: .notifyCooldownHours)
         try c.encode(rescanHours, forKey: .rescanHours)
@@ -150,6 +161,8 @@ public struct Config: Codable, Equatable, Sendable {
         let nevers = never.map { "  - \"\($0)\"" }.joined(separator: "\n")
         return """
         target_free_gb: \(targetFreeGB)
+        warn_free_gb: \(warnFreeGB)
+        warn_cooldown_hours: \(warnCooldownHours)
         notify_min_gb: \(notifyMinGB)
         notify_cooldown_hours: \(notifyCooldownHours)
         rescan_hours: \(rescanHours)
