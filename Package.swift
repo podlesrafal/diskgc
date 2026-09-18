@@ -8,6 +8,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "diskgc", targets: ["diskgc"]),
+        .executable(name: "DiskGCBar", targets: ["DiskGCBar"]),
         .library(name: "DiskGCCore", targets: ["DiskGCCore"]),
     ],
     dependencies: [
@@ -24,6 +25,7 @@ let package = Package(
             ],
             swiftSettings: swift5
         ),
+        .executableTarget(name: "DiskGCBar", dependencies: ["DiskGCCore"], swiftSettings: swift5),
         .testTarget(name: "DiskGCCoreTests", dependencies: ["DiskGCCore"], swiftSettings: swift5),
     ]
 )
