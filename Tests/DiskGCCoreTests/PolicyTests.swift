@@ -115,7 +115,7 @@ struct StubScanner: DiskScanner {
         let harness = Harness(freeSequence: [50 * gb])
         let first = try harness.tick(config: config, ask: ask)
         #expect(first.notified)
-        #expect(harness.notifier.messages == ["6.0 GB do przejrzenia (Docker 4.0 GB, worktree 2.0 GB). Uruchom: diskgc review"])
+        #expect(harness.notifier.messages == ["6.0 GB you can reclaim (Docker 4.0 GB, worktrees 2.0 GB) \u{2014} click to review"])
         #expect(first.state.lastNotifiedAt == Date(timeIntervalSince1970: 1_000_000))
         let second = try harness.tick(config: config, state: first.state, ask: ask)
         #expect(!second.notified)
@@ -133,7 +133,7 @@ struct StubScanner: DiskScanner {
         let report = try harness.tick(config: config, ask: ask)
         #expect(report.warned)
         #expect(!report.notified)
-        #expect(harness.notifier.messages == ["Zostało 4.0 GB, 1.0 GB do przejrzenia: diskgc review"])
+        #expect(harness.notifier.messages == ["4.0 GB left, 1.0 GB you can reclaim \u{2014} click to review"])
         #expect(report.state.lastWarnedAt == Date(timeIntervalSince1970: 1_000_000))
         let second = try harness.tick(config: config, state: report.state, ask: ask)
         #expect(!second.warned)
@@ -146,6 +146,6 @@ struct StubScanner: DiskScanner {
             ok: false, message: "commandNotFound"
         )
         let text = Tick.warning(free: 3 * ByteFormat.gigabyte, reclaimed: ByteFormat.gigabyte, ask: [], executed: [failed])
-        #expect(text == "Zostało 3.0 GB, auto zwolniło 1.0 GB, nie powiodło się: pnpm")
+        #expect(text == "3.0 GB left, auto freed 1.0 GB, failed: pnpm")
     }
 }

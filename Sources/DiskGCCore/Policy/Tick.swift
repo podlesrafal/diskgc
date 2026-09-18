@@ -63,7 +63,7 @@ public struct Tick {
         let warnBelow = Int64(ctx.config.warnFreeGB) * ByteFormat.gigabyte
         if free < warnBelow, cooldownPassed(state.lastWarnedAt, hours: ctx.config.warnCooldownHours) {
             notifier.notify(
-                title: "diskgc: kończy się miejsce",
+                title: "Running low on space",
                 message: Self.warning(free: free, reclaimed: freeBefore < free ? free - freeBefore : 0, ask: ask, executed: executed)
             )
             state.lastWarnedAt = ctx.now
@@ -86,12 +86,12 @@ public struct Tick {
     }
 
     public static func warning(free: Int64, reclaimed: Int64, ask: [Candidate], executed: [ExecutionResult]) -> String {
-        var parts = ["Zostało \(ByteFormat.gigabytes(free)) GB"]
-        if reclaimed > 0 { parts.append("auto zwolniło \(ByteFormat.gigabytes(reclaimed)) GB") }
+        var parts = ["\(ByteFormat.gigabytes(free)) GB left"]
+        if reclaimed > 0 { parts.append("auto freed \(ByteFormat.gigabytes(reclaimed)) GB") }
         let askTotal = ask.reduce(0) { $0 + $1.sizeBytes }
-        if askTotal > 0 { parts.append("\(ByteFormat.gigabytes(askTotal)) GB do przejrzenia: diskgc review") }
+        if askTotal > 0 { parts.append("\(ByteFormat.gigabytes(askTotal)) GB you can reclaim \u{2014} click to review") }
         let failed = executed.filter { !$0.ok }.map(\.candidate.label)
-        if !failed.isEmpty { parts.append("nie powiodło się: \(failed.joined(separator: ", "))") }
+        if !failed.isEmpty { parts.append("failed: \(failed.joined(separator: ", "))") }
         return parts.joined(separator: ", ")
     }
 
@@ -101,8 +101,8 @@ public struct Tick {
         let worktrees = ask.filter { $0.scanner == .worktrees }.reduce(0) { $0 + $1.sizeBytes }
         var parts: [String] = []
         if docker > 0 { parts.append("Docker \(ByteFormat.gigabytes(docker)) GB") }
-        if worktrees > 0 { parts.append("worktree \(ByteFormat.gigabytes(worktrees)) GB") }
+        if worktrees > 0 { parts.append("worktrees \(ByteFormat.gigabytes(worktrees)) GB") }
         let breakdown = parts.isEmpty ? "" : " (\(parts.joined(separator: ", ")))"
-        return "\(ByteFormat.gigabytes(total)) GB do przejrzenia\(breakdown). Uruchom: diskgc review"
+        return "\(ByteFormat.gigabytes(total)) GB you can reclaim\(breakdown) \u{2014} click to review"
     }
 }
