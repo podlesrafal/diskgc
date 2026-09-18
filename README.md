@@ -2,35 +2,45 @@
 
 Reclaims disk space on a developer Mac. Tool caches and build artifacts are removed
 automatically when free space drops below a target; Docker resources and git worktrees are
-only removed after you confirm them in an interactive review.
+only removed after you confirm them, either in the menu bar app or in an interactive
+review on the command line.
+
+`DiskGC.app` sits in the menu bar showing free space, cleans the auto tier on a timer, and
+opens a popover listing everything that needs your call, grouped and expandable, so you can
+tick the exact images or worktrees to remove.
 
 ## Install
 
 ```bash
 swift build -c release
+Scripts/bundle.sh
 .build/release/diskgc install
 ```
 
-`install` copies the binary to `~/.local/bin/diskgc`, writes a default config to
-`~/.config/diskgc/config.yaml` and loads a LaunchAgent that runs `diskgc tick` every
-30 minutes (and once right away). `diskgc uninstall` removes the agent.
+`bundle.sh` assembles `.build/DiskGC.app` around the built binary and signs it ad-hoc.
+`install` copies that bundle to `~/Applications`, copies the CLI to `~/.local/bin/diskgc`,
+writes a default config to `~/.config/diskgc/config.yaml` and loads a LaunchAgent that keeps
+the app running from login. The app owns the 30-minute cycle, so there is no scheduled CLI
+tick any more. `diskgc uninstall` removes the agent and the installed app.
 
-The first run under launchd makes macOS ask whether `diskgc` may access your Documents
+The first run under launchd makes macOS ask whether the app may access your Documents
 folder (project roots live there); the scan blocks until you click Allow. If you decline,
 `diskgc status` reports the missing permission and the project scanners find nothing.
 Grant it once in System Settings > Privacy & Security > Files and Folders (or Full Disk
-Access) for `~/.local/bin/diskgc`. Reinstalling a rebuilt binary may trigger the prompt again.
+Access) for `DiskGC.app` (and for `~/.local/bin/diskgc` if you also use the CLI). The popover
+shows a banner with a link to the setting while the permission is missing. Reinstalling a
+rebuilt binary may trigger the prompt again.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `diskgc status [--rescan] [--verbose] [--json]` | free space and reclaimable candidates per tier |
-| `diskgc tick [--dry-run]` | one pressure cycle: remove auto candidates until the target is reached, notify about the ask tier |
+| `diskgc tick [--dry-run]` | one pressure cycle by hand; the app runs this on its own every 30 min |
 | `diskgc clean [--dry-run] [--all] [--scanner name]` | run the auto tier now; `--all` ignores the target |
 | `diskgc review [--dry-run]` | walk through stale build artifacts, Docker containers, images, build cache, anonymous volumes and idle worktrees |
 | `diskgc log [--limit n]` | journal of every planned and performed action |
-| `diskgc install` / `diskgc uninstall` | manage the LaunchAgent |
+| `diskgc install [--app path]` / `diskgc uninstall` | install or remove the app, the CLI and the LaunchAgent |
 
 ## Tiers
 
@@ -101,8 +111,8 @@ never:
 `warn_free_gb` is the low-space alarm: whenever a tick ends below it you get a notification
 naming what is left, what the auto tier reclaimed and which actions failed, repeated every
 `warn_cooldown_hours`. `notify_min_gb` is unrelated to free space - it only decides how much
-has to sit in the ask tier before diskgc reminds you to run `diskgc review`, and it stays
-quiet while the low-space alarm is active.
+has to sit in the ask tier before diskgc nudges you, and it stays quiet while the low-space
+alarm is active. Clicking either notification opens the popover.
 
 State (size cache, kept worktrees, last notification) lives in `~/.local/share/diskgc/state.json`,
 the journal in `~/.local/share/diskgc/journal.jsonl`, launchd output in `~/Library/Logs/diskgc/`.
