@@ -6,7 +6,7 @@ struct InstallCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "install", abstract: "Install the binary to ~/.local/bin and load the launchd agent.")
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         let fs = FileManager.default
         if !fs.fileExists(atPath: env.configPath) {
             try fs.createDirectory(atPath: (env.configPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
@@ -24,7 +24,7 @@ struct UninstallCommand: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "uninstall", abstract: "Unload and remove the launchd agent.")
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         try LaunchAgent.uninstall(home: env.home, shell: env.shell, fs: .default)
         print("removed \(LaunchAgent.plistPath(home: env.home))")
     }

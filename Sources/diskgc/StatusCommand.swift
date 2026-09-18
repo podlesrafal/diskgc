@@ -15,7 +15,7 @@ struct StatusCommand: ParsableCommand {
     var verbose = false
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         let sizes = env.sizeProbe(rescan: rescan)
         let scanned = ScannerRegistry.scan(env.context(sizes: sizes))
         let report = StatusReport(generatedAt: Date(), freeBytes: try env.freeBytes(), targetBytes: env.targetBytes, candidates: scanned.candidates, errors: scanned.errors)

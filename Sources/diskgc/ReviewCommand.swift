@@ -9,7 +9,7 @@ struct ReviewCommand: ParsableCommand {
     var dryRun = false
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         let sizes = env.sizeProbe(rescan: false)
         var state = env.state
         let io = ReviewIO(

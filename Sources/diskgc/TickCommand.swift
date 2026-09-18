@@ -9,7 +9,7 @@ struct TickCommand: ParsableCommand {
     var dryRun = false
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         let sizes = env.sizeProbe(rescan: false)
         let notifier: Notifier = dryRun ? PrintingNotifier(output: { print($0) }) : OSAScriptNotifier(shell: env.shell)
         let tick = Tick(ctx: env.context(sizes: sizes), executor: env.executor(dryRun: dryRun), notifier: notifier, freeBytes: env.freeBytes)

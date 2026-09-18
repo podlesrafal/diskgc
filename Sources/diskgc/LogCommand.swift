@@ -9,7 +9,7 @@ struct LogCommand: ParsableCommand {
     var limit = 50
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         let formatter = ISO8601DateFormatter()
         for entry in try env.journal.read(limit: limit) {
             let status = entry.dryRun ? "dry-run" : (entry.error == "pending" ? "pending" : (entry.ok ? "ok" : "FAILED"))

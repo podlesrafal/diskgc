@@ -15,7 +15,7 @@ struct CleanCommand: ParsableCommand {
     var scanner: String?
 
     func run() throws {
-        let env = try Environment()
+        let env = try Runtime()
         let only: Set<ScannerID>? = try scanner.map { name in
             guard let id = ScannerID(rawValue: name) else { throw ValidationError("unknown scanner: \(name)") }
             return [id]
