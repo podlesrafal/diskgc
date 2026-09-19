@@ -22,6 +22,20 @@ public enum LaunchAgent {
         "\(appPath(home: home))/Contents/MacOS/\(appBinaryName)"
     }
 
+    // SwiftPM symlinks .build/release into .build/<arch>/release, so the bundle sits a
+    // varying number of levels above the resolved binary.
+    public static func bundledApp(near binary: String, fs: FileManager, levels: Int = 4) -> String? {
+        var directory = (binary as NSString).deletingLastPathComponent
+        for _ in 0..<levels {
+            let candidate = "\(directory)/\(appName)"
+            if fs.fileExists(atPath: candidate) { return candidate }
+            let parent = (directory as NSString).deletingLastPathComponent
+            guard parent != directory, !parent.isEmpty else { break }
+            directory = parent
+        }
+        return nil
+    }
+
     public static func plist(binary: String, logDir: String, path: String) -> String {
         """
         <?xml version="1.0" encoding="UTF-8"?>

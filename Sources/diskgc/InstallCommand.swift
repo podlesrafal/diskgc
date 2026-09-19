@@ -18,7 +18,7 @@ struct InstallCommand: ParsableCommand {
         }
         guard let source = Bundle.main.executableURL?.path else { throw ValidationError("cannot locate the running binary") }
         let binary = RealPath.resolve(source)
-        guard let bundle = app ?? Self.locateApp(near: binary, fs: fs) else {
+        guard let bundle = app ?? LaunchAgent.bundledApp(near: binary, fs: fs) else {
             throw ValidationError("cannot find \(LaunchAgent.appName); run Scripts/bundle.sh first or pass --app")
         }
         let path = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
@@ -28,15 +28,6 @@ struct InstallCommand: ParsableCommand {
         )
         print("installed \(LaunchAgent.appPath(home: env.home)) and \(LaunchAgent.binaryPath(home: env.home))")
         print("loaded \(plist)")
-    }
-
-    static func locateApp(near binary: String, fs: FileManager) -> String? {
-        let directory = (binary as NSString).deletingLastPathComponent
-        let candidates = [
-            "\(directory)/\(LaunchAgent.appName)",
-            "\((directory as NSString).deletingLastPathComponent)/\(LaunchAgent.appName)",
-        ]
-        return candidates.first { fs.fileExists(atPath: $0) }
     }
 }
 

@@ -20,6 +20,26 @@ import Testing
         #expect(!plist.contains("<key>StartInterval</key>"))
     }
 
+    @Test func findsTheBundleBesideTheBinary() throws {
+        let root = TestSupport.tempDir("build")
+        TestSupport.touch("\(root)/diskgc", content: "")
+        TestSupport.mkdir("\(root)/DiskGC.app")
+        #expect(LaunchAgent.bundledApp(near: "\(root)/diskgc", fs: .default) == "\(root)/DiskGC.app")
+    }
+
+    @Test func findsTheBundleWhenSwiftpmResolvedTheBinaryIntoItsArchDirectory() throws {
+        let root = TestSupport.tempDir("build")
+        TestSupport.touch("\(root)/arm64-apple-macosx/release/diskgc", content: "")
+        TestSupport.mkdir("\(root)/DiskGC.app")
+        #expect(LaunchAgent.bundledApp(near: "\(root)/arm64-apple-macosx/release/diskgc", fs: .default) == "\(root)/DiskGC.app")
+    }
+
+    @Test func reportsNoBundleWhenNoneWasBuilt() throws {
+        let root = TestSupport.tempDir("build")
+        TestSupport.touch("\(root)/release/diskgc", content: "")
+        #expect(LaunchAgent.bundledApp(near: "\(root)/release/diskgc", fs: .default) == nil)
+    }
+
     @Test func installCopiesTheCliAndTheAppThenBootstraps() throws {
         let home = TestSupport.tempDir("home")
         let source = TestSupport.tempDir("src") + "/diskgc"
