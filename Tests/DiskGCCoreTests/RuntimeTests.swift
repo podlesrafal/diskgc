@@ -9,6 +9,7 @@ import Testing
         #expect(runtime.configPath == "\(home)/.config/diskgc/config.yaml")
         #expect(runtime.statePath == "\(home)/.local/share/diskgc/state.json")
         #expect(runtime.journalPath == "\(home)/.local/share/diskgc/journal.jsonl")
+        #expect(runtime.lastScanPath == "\(home)/.local/share/diskgc/last-scan.json")
         #expect(runtime.logDir == "\(home)/Library/Logs/diskgc")
     }
 

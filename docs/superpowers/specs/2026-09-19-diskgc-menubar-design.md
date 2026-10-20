@@ -94,26 +94,28 @@ twelve images on one base count that base twelve times. The button therefore pro
 
 ## Behaviour
 
-**Freshness.** The popover opens immediately on the last scan held in memory, labelled
-with its age, and refreshes in the background. A full scan runs `lsof` across every
-process and `docker system df`, which takes seconds — long enough that scanning on open
-would make the popover feel broken. The remove button is disabled while a refresh is in
-flight.
+**Freshness.** The popover opens immediately on the last scan, labelled with its age.
+Opening it rescans in the background only when that scan is older than ten minutes;
+Rescan forces one. A full scan runs `lsof`, `du` and `docker system df` and can take
+minutes, so removal never waits for it: Remove stays enabled while a scan is in flight,
+and only Clean (the auto tier, which the tick also touches) is disabled.
 
-**Scan cache.** In memory only. The app is `KeepAlive`, so it survives between
-interactions, and `state.json` keeps its current shape with one writer. A cold start
-shows a spinner once; the agent ticks at load, so in practice the list is there first.
+**Scan cache.** Every scan and tick writes `~/.local/share/diskgc/last-scan.json`. A cold
+start shows that snapshot at once and ticks only when it is older than ten minutes;
+removed and kept items are dropped from it so they do not reappear after a restart.
 
-**Serialisation.** Tick, Clean and Remove run through one serial actor. While the
-popover is open the timer defers to the next cycle, so rows never vanish under the
-pointer, and `state.json` and the journal keep a single writer.
+**Serialisation.** Tick, Rescan and Keep run through one serial scan queue, so
+`state.json` keeps a single writer. Remove and Clean run on a separate queue; the
+journal serialises its own appends. Items removed while a scan is running are filtered
+out of that scan's result. While the popover is open the timer defers to the next
+cycle, so rows never vanish under the pointer.
 
 **Selection across refresh.** Selection is held by `Candidate.id`. Rows that survive a
 refresh stay selected, rows that disappeared drop out silently, new rows arrive
 unselected, and the button total is recomputed.
 
-**After removal.** Removed rows disappear immediately, free space is re-read from the
-filesystem rather than assumed, and a full rescan follows in the background. A failed
+**After removal.** Removed rows disappear immediately and free space is re-read from the
+filesystem rather than assumed; no rescan follows. A failed
 removal leaves its row in place carrying `ExecutionResult.message`.
 
 **Notifications.** `Tick` keeps its logic; `UserNotificationsNotifier` replaces the

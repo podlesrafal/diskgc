@@ -12,17 +12,28 @@ final class AppModel: ObservableObject {
     @Published private(set) var failures: [String: String] = [:]
     @Published private(set) var lastScanAt: Date?
     @Published private(set) var status: String?
-    @Published private(set) var busy = false
+    @Published private(set) var scanning = false
+    @Published private(set) var removing = false
     @Published var expanded: Set<String> = []
+
+    static let rescanAfter: TimeInterval = 10 * 60
 
     let configPath: String
     let journalPath: String
     private let engine: Engine
+    private var dismissedDuringScan: Set<String> = []
 
     init(engine: Engine, configPath: String, journalPath: String) {
         self.engine = engine
         self.configPath = configPath
         self.journalPath = journalPath
+    }
+
+    var busy: Bool { scanning || removing }
+
+    var isStale: Bool {
+        guard let lastScanAt else { return true }
+        return Date().timeIntervalSince(lastScanAt) >= Self.rescanAfter
     }
 
     var autoBytes: Int64 { autoCandidates.reduce(0) { $0 + $1.sizeBytes } }
@@ -46,16 +57,28 @@ final class AppModel: ObservableObject {
 
     var otherErrors: [String] { errors.filter { !$0.contains("no permission to read") } }
 
+    func start() {
+        engine.restore { [weak self] outcome in
+            guard let self else { return }
+            if case .success(let snapshot?) = outcome, lastScanAt == nil { show(snapshot) }
+            if isStale { tick() }
+        }
+    }
+
+    func refreshIfStale() {
+        if isStale { refresh() }
+    }
+
     func refresh() {
-        guard !busy else { return }
-        busy = true
-        engine.scan { [weak self] in self?.apply($0) }
+        guard !scanning else { return }
+        beginScan()
+        engine.scan { [weak self] in self?.finishScan($0) }
     }
 
     func tick() {
         guard !busy else { return }
-        busy = true
-        engine.tick { [weak self] in self?.apply($0) }
+        beginScan()
+        engine.tick { [weak self] in self?.finishScan($0) }
     }
 
     func clean() {
@@ -67,7 +90,8 @@ final class AppModel: ObservableObject {
     }
 
     func keep(_ candidate: Candidate) {
-        engine.keep(worktree: candidate.id) { [weak self] _ in self?.refresh() }
+        dismiss([candidate.id])
+        engine.keep(worktree: candidate.id) { _ in }
     }
 
     func state(of group: CandidateGroup) -> GroupState {
@@ -87,8 +111,8 @@ final class AppModel: ObservableObject {
     }
 
     private func execute(_ candidates: [Candidate]) {
-        guard !busy, !candidates.isEmpty else { return }
-        busy = true
+        guard !removing, !candidates.isEmpty else { return }
+        removing = true
         status = nil
         failures = [:]
         engine.execute(candidates) { [weak self] outcome in
@@ -98,30 +122,46 @@ final class AppModel: ObservableObject {
                 free = done.free
                 failures = Dictionary(uniqueKeysWithValues: done.results.filter { !$0.ok }.map { ($0.candidate.id, $0.message) })
                 let removed = Set(done.results.filter(\.ok).map(\.candidate.id))
-                autoCandidates.removeAll { removed.contains($0.id) }
-                selection.update(candidates: selection.groups.flatMap(\.candidates).filter { !removed.contains($0.id) })
+                dismiss(removed)
+                engine.forget(removed)
                 status = "Freed \(ByteFormat.string(done.freed))"
             case .failure(let error):
                 errors = [String(describing: error)]
             }
-            busy = false
-            refresh()
+            removing = false
         }
     }
 
-    private func apply(_ outcome: Result<ScanOutcome, Error>) {
+    private func dismiss(_ ids: Set<String>) {
+        if scanning { dismissedDuringScan.formUnion(ids) }
+        autoCandidates.removeAll { ids.contains($0.id) }
+        selection.update(candidates: selection.groups.flatMap(\.candidates).filter { !ids.contains($0.id) })
+    }
+
+    private func beginScan() {
+        scanning = true
+        dismissedDuringScan = []
+    }
+
+    private func finishScan(_ outcome: Result<ScanOutcome, Error>) {
         switch outcome {
-        case .success(let scan):
-            free = scan.free
-            target = scan.target
-            warn = scan.warn
-            autoCandidates = scan.auto
-            selection.update(candidates: scan.ask)
-            errors = scan.errors
-            lastScanAt = scan.at
+        case .success(var scan):
+            scan.candidates.removeAll { dismissedDuringScan.contains($0.id) }
+            show(scan)
         case .failure(let error):
             errors = [String(describing: error)]
         }
-        busy = false
+        dismissedDuringScan = []
+        scanning = false
+    }
+
+    private func show(_ scan: ScanOutcome) {
+        free = scan.free
+        target = scan.target
+        warn = scan.warn
+        autoCandidates = scan.auto
+        selection.update(candidates: scan.ask)
+        errors = scan.errors
+        lastScanAt = scan.at
     }
 }

@@ -25,6 +25,7 @@ public struct JournalEntry: Codable, Equatable {
 }
 
 public final class Journal {
+    private static let lock = NSLock()
     public let path: String
 
     public init(path: String) {
@@ -32,6 +33,8 @@ public final class Journal {
     }
 
     public func append(_ entry: JournalEntry) throws {
+        Self.lock.lock()
+        defer { Self.lock.unlock() }
         let fs = FileManager.default
         try fs.createDirectory(atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
         if !fs.fileExists(atPath: path) { fs.createFile(atPath: path, contents: nil) }

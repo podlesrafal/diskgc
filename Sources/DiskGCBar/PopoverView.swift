@@ -42,10 +42,10 @@ struct PopoverView: View {
 
     private var subtitle: String {
         if let status = model.status { return status }
-        guard let at = model.lastScanAt else { return "scanning…" }
+        guard let at = model.lastScanAt else { return model.scanning ? "scanning…" : "not scanned yet" }
         let minutes = Int(Date().timeIntervalSince(at) / 60)
-        let age = minutes < 1 ? "just now" : "\(minutes) min ago"
-        return model.busy ? "\(age) · refreshing" : age
+        let age = minutes < 1 ? "scanned just now" : "scanned \(minutes) min ago"
+        return model.scanning ? "\(age) · refreshing" : age
     }
 
     private func banner(_ issue: String) -> some View {
@@ -80,7 +80,7 @@ struct PopoverView: View {
 
     @ViewBuilder private var askSection: some View {
         if model.selection.groups.isEmpty {
-            Text(model.busy ? "Scanning…" : "Nothing needs your call.")
+            Text(model.scanning ? "Scanning…" : "Nothing needs your call.")
                 .font(.callout).foregroundStyle(.secondary)
         } else {
             VStack(alignment: .leading, spacing: 6) {
@@ -101,9 +101,9 @@ struct PopoverView: View {
             Button(model.removeTitle) { model.removeSelected() }
                 .keyboardShortcut(.defaultAction)
                 .frame(maxWidth: .infinity)
-                .disabled(model.busy || model.selection.selectedCount == 0)
+                .disabled(model.removing || model.selection.selectedCount == 0)
             HStack(spacing: 12) {
-                Button("Rescan") { model.refresh() }.disabled(model.busy)
+                Button(model.scanning ? "Scanning…" : "Rescan") { model.refresh() }.disabled(model.scanning)
                 Button("config.yaml") { NSWorkspace.shared.open(URL(fileURLWithPath: model.configPath)) }
                 Button("Log") { NSWorkspace.shared.open(URL(fileURLWithPath: model.journalPath)) }
                 Spacer()

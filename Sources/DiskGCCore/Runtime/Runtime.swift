@@ -5,6 +5,7 @@ public struct Runtime {
     public let configPath: String
     public let statePath: String
     public let journalPath: String
+    public let lastScanPath: String
     public let logDir: String
     public let config: Config
     public let state: State
@@ -16,6 +17,7 @@ public struct Runtime {
         configPath = "\(home)/.config/diskgc/config.yaml"
         statePath = "\(home)/.local/share/diskgc/state.json"
         journalPath = "\(home)/.local/share/diskgc/journal.jsonl"
+        lastScanPath = "\(home)/.local/share/diskgc/last-scan.json"
         logDir = "\(home)/Library/Logs/diskgc"
         config = try Config.load(from: configPath, home: home)
         state = State.load(from: statePath)

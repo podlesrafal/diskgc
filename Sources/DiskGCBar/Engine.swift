@@ -20,28 +20,42 @@ struct ActionOutcome {
 }
 
 final class Engine {
-    private let queue = DispatchQueue(label: "dev.rpo.diskgc.engine", qos: .utility)
+    private let scanQueue = DispatchQueue(label: "dev.rpo.diskgc.scan", qos: .utility)
+    private let actionQueue = DispatchQueue(label: "dev.rpo.diskgc.action", qos: .userInitiated)
     private let notifier: Notifier
 
     init(notifier: Notifier) {
         self.notifier = notifier
     }
 
-    func scan(completion: @escaping (Result<ScanOutcome, Error>) -> Void) {
-        serially(completion) {
+    func restore(completion: @escaping (Result<ScanOutcome?, Error>) -> Void) {
+        run(on: actionQueue, completion) {
             let runtime = try Runtime()
-            let probe = runtime.sizeProbe(rescan: false)
-            let scanned = ScannerRegistry.scan(runtime.context(sizes: probe))
-            try runtime.save(runtime.state, sizes: probe)
+            guard let snapshot = ScanSnapshot.load(from: runtime.lastScanPath) else { return nil }
             return ScanOutcome(
                 free: try runtime.freeBytes(), target: runtime.targetBytes, warn: Self.warnBytes(runtime),
-                candidates: scanned.candidates, errors: scanned.errors, at: Date()
+                candidates: snapshot.candidates, errors: snapshot.errors, at: snapshot.at
             )
         }
     }
 
+    func scan(completion: @escaping (Result<ScanOutcome, Error>) -> Void) {
+        run(on: scanQueue, completion) {
+            let runtime = try Runtime()
+            let probe = runtime.sizeProbe(rescan: false)
+            let scanned = ScannerRegistry.scan(runtime.context(sizes: probe))
+            try runtime.save(runtime.state, sizes: probe)
+            let outcome = ScanOutcome(
+                free: try runtime.freeBytes(), target: runtime.targetBytes, warn: Self.warnBytes(runtime),
+                candidates: scanned.candidates, errors: scanned.errors, at: Date()
+            )
+            try Self.remember(outcome, runtime)
+            return outcome
+        }
+    }
+
     func tick(completion: @escaping (Result<ScanOutcome, Error>) -> Void) {
-        serially(completion) {
+        run(on: scanQueue, completion) {
             let runtime = try Runtime()
             let probe = runtime.sizeProbe(rescan: false)
             let tick = Tick(
@@ -51,15 +65,17 @@ final class Engine {
             let report = try tick.run()
             try runtime.save(report.state, sizes: probe)
             let reclaimed = Set(report.executed.filter(\.ok).map(\.candidate.id))
-            return ScanOutcome(
+            let outcome = ScanOutcome(
                 free: report.freeAfter, target: report.target, warn: Self.warnBytes(runtime),
                 candidates: report.candidates.filter { !reclaimed.contains($0.id) }, errors: report.errors, at: Date()
             )
+            try Self.remember(outcome, runtime)
+            return outcome
         }
     }
 
     func execute(_ candidates: [Candidate], completion: @escaping (Result<ActionOutcome, Error>) -> Void) {
-        serially(completion) {
+        run(on: actionQueue, completion) {
             let runtime = try Runtime()
             let executor = runtime.executor(dryRun: false)
             let before = try runtime.freeBytes()
@@ -69,9 +85,17 @@ final class Engine {
         }
     }
 
-    func keep(worktree path: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        serially(completion) {
+    func forget(_ ids: Set<String>) {
+        run(on: scanQueue, { _ in }) {
             let runtime = try Runtime()
+            try ScanSnapshot.forget(ids, at: runtime.lastScanPath)
+        }
+    }
+
+    func keep(worktree path: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        run(on: scanQueue, completion) {
+            let runtime = try Runtime()
+            try ScanSnapshot.forget([path], at: runtime.lastScanPath)
             var state = runtime.state
             guard !state.keptWorktrees.contains(path) else { return }
             state.keptWorktrees.append(path)
@@ -83,7 +107,11 @@ final class Engine {
         Int64(runtime.config.warnFreeGB) * ByteFormat.gigabyte
     }
 
-    private func serially<T>(_ completion: @escaping (Result<T, Error>) -> Void, _ work: @escaping () throws -> T) {
+    private static func remember(_ outcome: ScanOutcome, _ runtime: Runtime) throws {
+        try ScanSnapshot(at: outcome.at, candidates: outcome.candidates, errors: outcome.errors).save(to: runtime.lastScanPath)
+    }
+
+    private func run<T>(on queue: DispatchQueue, _ completion: @escaping (Result<T, Error>) -> Void, _ work: @escaping () throws -> T) {
         queue.async {
             let outcome = Result { try work() }
             DispatchQueue.main.async { completion(outcome) }

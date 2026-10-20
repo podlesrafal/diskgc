@@ -42,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         renderTitle()
-        model.tick()
+        model.start()
         timer = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tickUnlessBusy() }
         }
@@ -71,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem.button else { return }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
-        model.refresh()
+        model.refreshIfStale()
     }
 }
 
