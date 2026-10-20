@@ -70,7 +70,7 @@ struct PopoverView: View {
                     Text("Safe to clean").font(.callout.weight(.medium))
                     Spacer()
                     Text(ByteFormat.string(model.autoBytes)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                    Button("Clean") { model.clean() }.disabled(model.busy)
+                    Button("Clean") { model.clean() }.disabled(model.removing)
                 }
                 Text(model.autoCandidates.map(\.group).uniqued().joined(separator: ", "))
                     .font(.caption).foregroundStyle(.secondary)

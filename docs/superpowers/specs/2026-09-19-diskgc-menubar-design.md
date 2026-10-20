@@ -97,8 +97,8 @@ twelve images on one base count that base twelve times. The button therefore pro
 **Freshness.** The popover opens immediately on the last scan, labelled with its age.
 Opening it rescans in the background only when that scan is older than ten minutes;
 Rescan forces one. A full scan runs `lsof`, `du` and `docker system df` and can take
-minutes, so removal never waits for it: Remove stays enabled while a scan is in flight,
-and only Clean (the auto tier, which the tick also touches) is disabled.
+minutes, so it never blocks the popover: Remove and Clean stay enabled while a scan is
+in flight.
 
 **Scan cache.** Every scan and tick writes `~/.local/share/diskgc/last-scan.json`. A cold
 start shows that snapshot at once and ticks only when it is older than ten minutes;
